@@ -18,6 +18,9 @@ After bootstrap:
 # Check installation
 homestak status
 
+# Decrypt secrets (requires age key)
+homestak secrets decrypt
+
 # Configure PVE
 homestak pve-setup
 
@@ -58,6 +61,7 @@ curl ... | HOMESTAK_USER=homestak HOMESTAK_APPLY=pve-setup bash
 ## What Gets Installed
 
 **Core modules:**
+- `/opt/homestak/site-config/` - Site-specific secrets and configuration
 - `/opt/homestak/ansible/` - Ansible playbooks and roles
 - `/opt/homestak/iac-driver/` - Orchestration engine
 - `/opt/homestak/tofu/` - VM provisioning with OpenTofu
