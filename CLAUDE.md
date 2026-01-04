@@ -8,23 +8,24 @@ The "front door" to the homestak infrastructure-as-code ecosystem. This repo pro
 # Basic bootstrap
 curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh | bash
 
-# Bootstrap and apply pve-setup
-curl -fsSL .../install.sh | HOMESTAK_APPLY=pve-setup bash
+# Bootstrap with user creation
+curl -fsSL .../install.sh | HOMESTAK_USER=homestak bash
 
 # After bootstrap, use the 'homestak' command
+homestak status
 homestak pve-setup
-homestak user -e local_user=myuser
-homestak network -e pve_network_tasks='["reip"]' -e pve_new_ip=10.0.12.100
+homestak playbook user -e local_user=myuser
+homestak scenario pve-configure --local
 ```
 
 ## What It Does
 
-1. **Installs prerequisites** - git, ansible, python3-pip, sudo
-2. **Clones homestak repos** - Currently just `ansible`, extensible
-3. **Installs `homestak` command** - Wrapper for local ansible execution
-4. **Optionally runs initial setup** - Via `HOMESTAK_APPLY` env var
-
-Note: Proxmox-specific configuration (repos, packages) is handled by ansible playbooks (e.g., `pve-setup`), not the bootstrap script. This keeps bootstrap generic.
+1. **Installs prerequisites** - git, make (minimal)
+2. **Clones core repos** - ansible, iac-driver, tofu
+3. **Runs `make install-deps`** - each repo installs its own dependencies
+4. **Installs `homestak` CLI** - unified interface for all tooling
+5. **Optionally creates user** - via `HOMESTAK_USER` env var
+6. **Optionally runs initial task** - via `HOMESTAK_APPLY` env var
 
 ## Project Structure
 
@@ -41,12 +42,31 @@ After running install.sh:
 
 ```
 /opt/homestak/
-├── ansible/        # Cloned from homestak-dev/ansible
-├── run-local.sh    # Local execution wrapper
-└── ...             # Future: other repos as needed
+├── ansible/        # Playbooks and roles
+├── iac-driver/     # Orchestration engine
+├── tofu/           # VM provisioning
+├── packer/         # (optional) Image building
+└── homestak        # CLI wrapper
 
 /usr/local/bin/
-└── homestak -> /opt/homestak/run-local.sh
+└── homestak -> /opt/homestak/homestak
+```
+
+## homestak CLI
+
+```bash
+# Commands
+homestak playbook <name> [args]    # Run ansible playbook
+homestak scenario <name> [args]    # Run iac-driver scenario
+homestak install <module>          # Install optional module (packer)
+homestak update                    # Update all repositories
+homestak status                    # Show installation status
+
+# Playbook shortcuts
+homestak pve-setup                 # Configure Proxmox host
+homestak pve-install               # Install PVE on Debian 13
+homestak user                      # User management
+homestak network                   # Network configuration
 ```
 
 ## Environment Variables
@@ -57,22 +77,48 @@ After running install.sh:
 | `HOMESTAK_USER` | (none) | Create this user with sudo privileges |
 | `HOMESTAK_APPLY` | (none) | Task to run after bootstrap (pve-setup, user, network) |
 
+## Architecture
+
+### Dependency Installation
+
+Each repo has a `Makefile` with an `install-deps` target:
+
+| Repo | Dependencies |
+|------|--------------|
+| ansible | python3, ansible, python3-pip, git, sudo |
+| iac-driver | python3 |
+| tofu | opentofu (from official repo) |
+| packer | packer (optional, installed via `homestak install packer`) |
+
+Bootstrap installs only `git` and `make`, then delegates to each repo's Makefile.
+
+### Core vs Optional Modules
+
+**Core (always installed):**
+- ansible - Playbooks and roles
+- iac-driver - Orchestration engine
+- tofu - VM provisioning with OpenTofu
+
+**Optional (installed via `homestak install`):**
+- packer - Image building (release assets available on GitHub)
+
 ## Related Projects
 
 | Repo | Purpose |
 |------|---------|
 | [bootstrap](https://github.com/homestak-dev/bootstrap) | This repo - entry point |
 | [ansible](https://github.com/homestak-dev/ansible) | Playbooks and roles |
-| [iac-driver](https://github.com/homestak-dev/iac-driver) | E2E test orchestration |
+| [iac-driver](https://github.com/homestak-dev/iac-driver) | Orchestration engine |
+| [tofu](https://github.com/homestak-dev/tofu) | VM provisioning |
 | [packer](https://github.com/homestak-dev/packer) | Custom Debian cloud images |
-| [tofu](https://github.com/homestak-dev/tofu) | VM provisioning with OpenTofu |
 
 ## Design Philosophy
 
 - **Single entry point**: One URL to remember
+- **Minimal bootstrap**: Only git + make, repos own their dependencies
 - **Local execution**: Avoids SSH connection issues (especially for network changes)
 - **Idempotent**: Safe to run multiple times
-- **Extensible**: Easy to add more repos to clone
+- **Extensible**: Easy to add more repos/modules
 
 ## License
 

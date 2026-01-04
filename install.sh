@@ -8,14 +8,15 @@
 #
 # Options (via environment variables):
 #   HOMESTAK_BRANCH=develop  Use a different branch
+#   HOMESTAK_USER=homestak   Create a sudo user during bootstrap
 #   HOMESTAK_APPLY=pve-setup Run a task after bootstrap
 #
 # Examples:
 #   # Basic bootstrap
 #   curl -fsSL .../install.sh | bash
 #
-#   # Bootstrap and apply pve-setup
-#   curl -fsSL .../install.sh | HOMESTAK_APPLY=pve-setup bash
+#   # Bootstrap with user creation and pve-setup
+#   curl -fsSL .../install.sh | HOMESTAK_USER=homestak HOMESTAK_APPLY=pve-setup bash
 #
 #   # Use develop branch
 #   curl -fsSL .../install.sh | HOMESTAK_BRANCH=develop bash
@@ -29,8 +30,8 @@ BRANCH="${HOMESTAK_BRANCH:-master}"
 HOMESTAK_USER="${HOMESTAK_USER:-}"
 APPLY_TASK="${HOMESTAK_APPLY:-}"
 
-# Repos to clone
-REPOS=(ansible)
+# Core repos (always installed)
+CORE_REPOS=(ansible iac-driver tofu)
 
 # Colors
 RED='\033[0;31m'
@@ -53,11 +54,11 @@ log_info "Homestak Bootstrap"
 log_info "Branch: $BRANCH"
 
 #
-# Step 1: Install prerequisites
+# Step 1: Install minimal prerequisites
 #
-log_info "Installing prerequisites..."
+log_info "Installing prerequisites (git, make)..."
 apt-get update -qq
-apt-get install -y -qq git ansible python3-pip sudo > /dev/null
+apt-get install -y -qq git make > /dev/null
 
 #
 # Step 2: Clone/update homestak repos
@@ -84,121 +85,257 @@ clone_or_update() {
     fi
 }
 
-for repo in "${REPOS[@]}"; do
+for repo in "${CORE_REPOS[@]}"; do
     clone_or_update "$repo"
 done
 
-# Create symlink for backward compatibility
-[[ -L /opt/ansible ]] && rm /opt/ansible
-[[ -d /opt/ansible ]] || ln -sf "$HOMESTAK_DIR/ansible" /opt/ansible
+#
+# Step 3: Install dependencies for each repo
+#
+log_info "Installing dependencies..."
+for repo in "${CORE_REPOS[@]}"; do
+    if [[ -f "$HOMESTAK_DIR/$repo/Makefile" ]]; then
+        log_info "  $repo..."
+        make -C "$HOMESTAK_DIR/$repo" install-deps 2>&1 | sed 's/^/    /'
+    fi
+done
 
 #
-# Step 3: Install local execution wrapper
+# Step 4: Install homestak CLI
 #
-log_info "Installing local execution wrapper..."
+log_info "Installing homestak CLI..."
 
-cat > "$HOMESTAK_DIR/run-local.sh" << 'WRAPPER'
+cat > "$HOMESTAK_DIR/homestak" << 'CLI'
 #!/bin/bash
 #
-# Homestak Local Runner
-# Run ansible playbooks locally on this host
+# Homestak CLI
+# Unified interface for homestak IAC tooling
 #
 set -euo pipefail
 
-ANSIBLE_DIR="/opt/homestak/ansible"
-INVENTORY="$ANSIBLE_DIR/inventory/local.yml"
+HOMESTAK_DIR="/opt/homestak"
+ANSIBLE_DIR="$HOMESTAK_DIR/ansible"
+IAC_DRIVER_DIR="$HOMESTAK_DIR/iac-driver"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
 NC='\033[0m'
 
 usage() {
-    echo "Homestak Local Runner"
+    echo "Homestak CLI"
     echo ""
-    echo "Usage: $0 <playbook> [ansible options...]"
+    echo "Usage: homestak <command> [options]"
     echo ""
-    echo "Playbooks:"
-    echo "  pve-setup      Core PVE configuration"
-    echo "  pve-install    Install PVE on Debian 13"
-    echo "  user           User management"
-    echo "  network        Network configuration"
+    echo "Commands:"
+    echo "  playbook <name> [args]    Run an ansible playbook"
+    echo "  scenario <name> [args]    Run an iac-driver scenario"
+    echo "  install <module>          Install optional module (packer)"
+    echo "  update                    Update all repositories"
+    echo "  status                    Show installation status"
+    echo ""
+    echo "Playbook shortcuts:"
+    echo "  pve-setup                 Configure Proxmox host"
+    echo "  pve-install               Install PVE on Debian 13"
+    echo "  user                      User management"
+    echo "  network                   Network configuration"
     echo ""
     echo "Examples:"
-    echo "  $0 pve-setup"
-    echo "  $0 user -e local_user=myuser"
-    echo "  $0 network -e pve_network_tasks='[\"static\"]' -e pve_new_ip=10.0.12.100"
+    echo "  homestak pve-setup"
+    echo "  homestak playbook user -e local_user=myuser"
+    echo "  homestak scenario pve-configure --local"
+    echo "  homestak install packer"
     echo ""
     exit 1
 }
 
+run_playbook() {
+    local playbook="$1"
+    shift
+    local playbook_file
+
+    # Map short names to playbook files
+    case "$playbook" in
+        pve-setup)   playbook_file="$ANSIBLE_DIR/playbooks/pve-setup.yml" ;;
+        pve-install) playbook_file="$ANSIBLE_DIR/playbooks/pve-install.yml" ;;
+        user)        playbook_file="$ANSIBLE_DIR/playbooks/user.yml" ;;
+        network)     playbook_file="$ANSIBLE_DIR/playbooks/pve-network.yml" ;;
+        *)
+            if [[ -f "$playbook" ]]; then
+                playbook_file="$playbook"
+            elif [[ -f "$ANSIBLE_DIR/playbooks/$playbook" ]]; then
+                playbook_file="$ANSIBLE_DIR/playbooks/$playbook"
+            elif [[ -f "$ANSIBLE_DIR/playbooks/${playbook}.yml" ]]; then
+                playbook_file="$ANSIBLE_DIR/playbooks/${playbook}.yml"
+            else
+                echo -e "${RED}Unknown playbook: $playbook${NC}"
+                exit 1
+            fi
+            ;;
+    esac
+
+    if [[ ! -f "$playbook_file" ]]; then
+        echo -e "${RED}Playbook not found: $playbook_file${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}==>${NC} Running playbook: $(basename "$playbook_file")"
+    cd "$ANSIBLE_DIR"
+    exec ansible-playbook -i inventory/local.yml "$playbook_file" -c local "$@"
+}
+
+run_scenario() {
+    local scenario="$1"
+    shift
+
+    if [[ ! -x "$IAC_DRIVER_DIR/run.sh" ]]; then
+        echo -e "${RED}iac-driver not found${NC}"
+        exit 1
+    fi
+
+    echo -e "${GREEN}==>${NC} Running scenario: $scenario"
+    exec "$IAC_DRIVER_DIR/run.sh" --scenario "$scenario" "$@"
+}
+
+install_module() {
+    local module="$1"
+    local repo_url="https://github.com/homestak-dev/${module}.git"
+    local target_dir="$HOMESTAK_DIR/$module"
+
+    case "$module" in
+        packer)
+            echo -e "${GREEN}==>${NC} Installing $module..."
+            if [[ -d "$target_dir/.git" ]]; then
+                echo "  Already installed, updating..."
+                git -C "$target_dir" pull -q
+            else
+                git clone -q "$repo_url" "$target_dir"
+            fi
+            if [[ -f "$target_dir/Makefile" ]]; then
+                make -C "$target_dir" install-deps 2>&1 | sed 's/^/  /'
+            fi
+            echo -e "${GREEN}==>${NC} Done."
+            ;;
+        *)
+            echo -e "${RED}Unknown module: $module${NC}"
+            echo "Available modules: packer"
+            exit 1
+            ;;
+    esac
+}
+
+update_repos() {
+    echo -e "${GREEN}==>${NC} Updating repositories..."
+    for repo in ansible iac-driver tofu packer; do
+        local target_dir="$HOMESTAK_DIR/$repo"
+        if [[ -d "$target_dir/.git" ]]; then
+            echo "  $repo..."
+            git -C "$target_dir" pull -q 2>/dev/null || echo "    (failed to update)"
+        fi
+    done
+    echo -e "${GREEN}==>${NC} Done."
+}
+
+show_status() {
+    echo "Homestak Status"
+    echo ""
+    echo "Installation directory: $HOMESTAK_DIR"
+    echo ""
+    echo "Installed modules:"
+    for repo in ansible iac-driver tofu packer; do
+        local target_dir="$HOMESTAK_DIR/$repo"
+        if [[ -d "$target_dir/.git" ]]; then
+            local branch=$(git -C "$target_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+            local commit=$(git -C "$target_dir" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+            printf "  %-12s %s (%s)\n" "$repo" "$branch" "$commit"
+        else
+            printf "  %-12s %s\n" "$repo" "(not installed)"
+        fi
+    done
+    echo ""
+    echo "Tools:"
+    printf "  %-12s " "ansible" && (ansible --version 2>/dev/null | head -1 || echo "not installed")
+    printf "  %-12s " "tofu" && (tofu version 2>/dev/null | head -1 || echo "not installed")
+    printf "  %-12s " "packer" && (packer version 2>/dev/null | head -1 || echo "not installed")
+    echo ""
+}
+
+# Main
 [[ $# -lt 1 ]] && usage
 
-PLAYBOOK="$1"
+CMD="$1"
 shift
 
-# Map short names to playbook files
-case "$PLAYBOOK" in
-    pve-setup)   PLAYBOOK_FILE="$ANSIBLE_DIR/playbooks/pve-setup.yml" ;;
-    pve-install) PLAYBOOK_FILE="$ANSIBLE_DIR/playbooks/pve-install.yml" ;;
-    user)        PLAYBOOK_FILE="$ANSIBLE_DIR/playbooks/user.yml" ;;
-    network)     PLAYBOOK_FILE="$ANSIBLE_DIR/playbooks/pve-network.yml" ;;
-    -h|--help)   usage ;;
+case "$CMD" in
+    playbook)
+        [[ $# -lt 1 ]] && { echo "Usage: homestak playbook <name> [args]"; exit 1; }
+        run_playbook "$@"
+        ;;
+    scenario)
+        [[ $# -lt 1 ]] && { echo "Usage: homestak scenario <name> [args]"; exit 1; }
+        run_scenario "$@"
+        ;;
+    install)
+        [[ $# -lt 1 ]] && { echo "Usage: homestak install <module>"; exit 1; }
+        install_module "$1"
+        ;;
+    update)
+        update_repos
+        ;;
+    status)
+        show_status
+        ;;
+    # Playbook shortcuts
+    pve-setup|pve-install|user|network)
+        run_playbook "$CMD" "$@"
+        ;;
+    -h|--help|help)
+        usage
+        ;;
     *)
-        # Allow direct playbook path
-        if [[ -f "$PLAYBOOK" ]]; then
-            PLAYBOOK_FILE="$PLAYBOOK"
-        elif [[ -f "$ANSIBLE_DIR/playbooks/$PLAYBOOK" ]]; then
-            PLAYBOOK_FILE="$ANSIBLE_DIR/playbooks/$PLAYBOOK"
-        else
-            echo -e "${RED}Unknown playbook: $PLAYBOOK${NC}"
-            usage
-        fi
+        echo -e "${RED}Unknown command: $CMD${NC}"
+        usage
         ;;
 esac
+CLI
 
-if [[ ! -f "$PLAYBOOK_FILE" ]]; then
-    echo -e "${RED}Playbook not found: $PLAYBOOK_FILE${NC}"
-    exit 1
-fi
-
-echo -e "${GREEN}==>${NC} Running: $(basename $PLAYBOOK_FILE)"
-cd "$ANSIBLE_DIR"
-exec ansible-playbook -i "$INVENTORY" "$PLAYBOOK_FILE" -c local "$@"
-WRAPPER
-
-chmod +x "$HOMESTAK_DIR/run-local.sh"
-
-# Add to PATH via symlink
-ln -sf "$HOMESTAK_DIR/run-local.sh" /usr/local/bin/homestak
+chmod +x "$HOMESTAK_DIR/homestak"
+ln -sf "$HOMESTAK_DIR/homestak" /usr/local/bin/homestak
 
 #
-# Step 4: Create user if requested
+# Step 5: Create user if requested
 #
 if [[ -n "$HOMESTAK_USER" ]]; then
     log_info "Creating user: $HOMESTAK_USER"
-    "$HOMESTAK_DIR/run-local.sh" user -e local_user="$HOMESTAK_USER"
+    "$HOMESTAK_DIR/homestak" playbook user -e local_user="$HOMESTAK_USER"
 fi
 
 #
-# Step 5: Apply task if requested
+# Step 6: Apply task if requested
 #
 if [[ -n "$APPLY_TASK" ]]; then
     log_info "Applying task: $APPLY_TASK"
-    "$HOMESTAK_DIR/run-local.sh" "$APPLY_TASK"
+    "$HOMESTAK_DIR/homestak" "$APPLY_TASK"
 fi
 
 #
-# Done
+# Done - Show summary
 #
-log_info "Bootstrap complete!"
 echo ""
-echo "Homestak installed to: $HOMESTAK_DIR"
+echo -e "${GREEN}════════════════════════════════════════${NC}"
+echo -e "${GREEN}  Homestak Bootstrap Complete${NC}"
+echo -e "${GREEN}════════════════════════════════════════${NC}"
 echo ""
-echo "Run playbooks locally:"
-echo "  homestak pve-setup"
+echo "Installed to: $HOMESTAK_DIR"
+echo ""
+echo "Modules:"
+for repo in "${CORE_REPOS[@]}"; do
+    echo "  - $repo"
+done
+echo ""
+echo "Quick start:"
+echo "  homestak status              # Check installation"
+echo "  homestak pve-setup           # Configure Proxmox"
 echo "  homestak user -e local_user=myuser"
-echo "  homestak network -e pve_network_tasks='[\"reip\"]' -e pve_new_ip=10.0.12.100"
-echo ""
-echo "Or use the full path:"
-echo "  /opt/homestak/run-local.sh <playbook> [options]"
+echo "  homestak scenario --help     # View available scenarios"
 echo ""
