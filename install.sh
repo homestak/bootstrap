@@ -141,7 +141,7 @@ usage() {
     echo "Commands:"
     echo "  playbook <name> [args]    Run an ansible playbook"
     echo "  scenario <name> [args]    Run an iac-driver scenario"
-    echo "  secrets <action>          Manage secrets (decrypt, encrypt, check)"
+    echo "  secrets <action>          Manage secrets (decrypt, encrypt, check, validate)"
     echo "  install <module>          Install optional module (packer)"
     echo "  update                    Update all repositories"
     echo "  status                    Show installation status"
@@ -247,13 +247,13 @@ manage_secrets() {
     fi
 
     case "$action" in
-        decrypt|encrypt|check)
+        decrypt|encrypt|check|validate)
             echo -e "${GREEN}==>${NC} Running: make $action"
             make -C "$site_config" "$action"
             ;;
         *)
             echo -e "${RED}Unknown action: $action${NC}"
-            echo "Available actions: decrypt, encrypt, check"
+            echo "Available actions: decrypt, encrypt, check, validate"
             exit 1
             ;;
     esac
@@ -311,7 +311,7 @@ case "$CMD" in
         run_scenario "$@"
         ;;
     secrets)
-        [[ $# -lt 1 ]] && { echo "Usage: homestak secrets <decrypt|encrypt|check>"; exit 1; }
+        [[ $# -lt 1 ]] && { echo "Usage: homestak secrets <decrypt|encrypt|check|validate>"; exit 1; }
         manage_secrets "$1"
         ;;
     install)
