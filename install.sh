@@ -26,6 +26,7 @@ set -euo pipefail
 HOMESTAK_DIR="/opt/homestak"
 GITHUB_ORG="https://github.com/homestak-dev"
 BRANCH="${HOMESTAK_BRANCH:-master}"
+HOMESTAK_USER="${HOMESTAK_USER:-}"
 APPLY_TASK="${HOMESTAK_APPLY:-}"
 
 # Repos to clone
@@ -171,7 +172,15 @@ chmod +x "$HOMESTAK_DIR/run-local.sh"
 ln -sf "$HOMESTAK_DIR/run-local.sh" /usr/local/bin/homestak
 
 #
-# Step 4: Apply task if requested
+# Step 4: Create user if requested
+#
+if [[ -n "$HOMESTAK_USER" ]]; then
+    log_info "Creating user: $HOMESTAK_USER"
+    "$HOMESTAK_DIR/run-local.sh" user -e local_user="$HOMESTAK_USER"
+fi
+
+#
+# Step 5: Apply task if requested
 #
 if [[ -n "$APPLY_TASK" ]]; then
     log_info "Applying task: $APPLY_TASK"

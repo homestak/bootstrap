@@ -54,6 +54,7 @@ After running install.sh:
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `HOMESTAK_BRANCH` | master | Git branch to use for all repos |
+| `HOMESTAK_USER` | (none) | Create this user with sudo privileges |
 | `HOMESTAK_APPLY` | (none) | Task to run after bootstrap (pve-setup, user, network) |
 
 ## Related Projects

@@ -33,8 +33,14 @@ Set environment variables before piping to bash:
 # Use a different branch
 curl ... | HOMESTAK_BRANCH=develop bash
 
+# Create a user during bootstrap
+curl ... | HOMESTAK_USER=homestak bash
+
 # Bootstrap and immediately run pve-setup
 curl ... | HOMESTAK_APPLY=pve-setup bash
+
+# Combine options
+curl ... | HOMESTAK_USER=homestak HOMESTAK_APPLY=pve-setup bash
 ```
 
 ## What Gets Installed
