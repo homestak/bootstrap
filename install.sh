@@ -1,7 +1,7 @@
 #!/bin/bash
 #
 # Homestak Bootstrap
-# Sets up a Proxmox host for local IAC execution
+# Installs the homestak IAC tooling for local execution
 #
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh | bash
@@ -52,35 +52,14 @@ log_info "Homestak Bootstrap"
 log_info "Branch: $BRANCH"
 
 #
-# Step 1: Configure Proxmox repositories
-#
-log_info "Configuring Proxmox repositories..."
-
-# Disable enterprise repos
-for repo in /etc/apt/sources.list.d/{pve-enterprise.sources,ceph.sources}; do
-    if [[ -f "$repo" ]]; then
-        mv "$repo" "${repo}.disabled"
-        log_info "  Disabled: $(basename $repo)"
-    fi
-done
-
-# Add no-subscription repo
-NOSUB_REPO="/etc/apt/sources.list.d/pve-no-subscription.list"
-if [[ ! -f "$NOSUB_REPO" ]]; then
-    CODENAME=$(grep VERSION_CODENAME /etc/os-release | cut -d= -f2)
-    echo "deb http://download.proxmox.com/debian/pve ${CODENAME} pve-no-subscription" > "$NOSUB_REPO"
-    log_info "  Added: pve-no-subscription repo"
-fi
-
-#
-# Step 2: Install prerequisites
+# Step 1: Install prerequisites
 #
 log_info "Installing prerequisites..."
 apt-get update -qq
 apt-get install -y -qq git ansible python3-pip sudo > /dev/null
 
 #
-# Step 3: Clone/update homestak repos
+# Step 2: Clone/update homestak repos
 #
 log_info "Setting up homestak repositories..."
 mkdir -p "$HOMESTAK_DIR"
@@ -113,7 +92,7 @@ done
 [[ -d /opt/ansible ]] || ln -sf "$HOMESTAK_DIR/ansible" /opt/ansible
 
 #
-# Step 4: Install local execution wrapper
+# Step 3: Install local execution wrapper
 #
 log_info "Installing local execution wrapper..."
 
@@ -192,7 +171,7 @@ chmod +x "$HOMESTAK_DIR/run-local.sh"
 ln -sf "$HOMESTAK_DIR/run-local.sh" /usr/local/bin/homestak
 
 #
-# Step 5: Apply task if requested
+# Step 4: Apply task if requested
 #
 if [[ -n "$APPLY_TASK" ]]; then
     log_info "Applying task: $APPLY_TASK"

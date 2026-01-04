@@ -19,11 +19,12 @@ homestak network -e pve_network_tasks='["reip"]' -e pve_new_ip=10.0.12.100
 
 ## What It Does
 
-1. **Configures Proxmox repos** - Disables enterprise, adds no-subscription
-2. **Installs prerequisites** - git, ansible, python3-pip, sudo
-3. **Clones homestak repos** - Currently just `ansible`, extensible
-4. **Installs `homestak` command** - Wrapper for local ansible execution
-5. **Optionally runs initial setup** - Via `HOMESTAK_APPLY` env var
+1. **Installs prerequisites** - git, ansible, python3-pip, sudo
+2. **Clones homestak repos** - Currently just `ansible`, extensible
+3. **Installs `homestak` command** - Wrapper for local ansible execution
+4. **Optionally runs initial setup** - Via `HOMESTAK_APPLY` env var
+
+Note: Proxmox-specific configuration (repos, packages) is handled by ansible playbooks (e.g., `pve-setup`), not the bootstrap script. This keeps bootstrap generic.
 
 ## Project Structure
 
