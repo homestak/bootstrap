@@ -31,7 +31,7 @@ HOMESTAK_USER="${HOMESTAK_USER:-}"
 APPLY_TASK="${HOMESTAK_APPLY:-}"
 
 # Core repos (always installed)
-CORE_REPOS=(ansible iac-driver tofu)
+CORE_REPOS=(site-config ansible iac-driver tofu)
 
 # Colors
 RED='\033[0;31m'
@@ -90,18 +90,29 @@ for repo in "${CORE_REPOS[@]}"; do
 done
 
 #
-# Step 3: Install dependencies for each repo
+# Step 3: Setup site-config
+#
+log_info "Setting up site-config..."
+if [[ -f "$HOMESTAK_DIR/site-config/Makefile" ]]; then
+    make -C "$HOMESTAK_DIR/site-config" setup 2>&1 | sed 's/^/    /' || true
+fi
+
+# Export for iac-driver discovery
+export HOMESTAK_SITE_CONFIG="$HOMESTAK_DIR/site-config"
+
+#
+# Step 4: Install dependencies for each repo
 #
 log_info "Installing dependencies..."
 for repo in "${CORE_REPOS[@]}"; do
-    if [[ -f "$HOMESTAK_DIR/$repo/Makefile" ]]; then
+    if [[ -f "$HOMESTAK_DIR/$repo/Makefile" ]] && [[ "$repo" != "site-config" ]]; then
         log_info "  $repo..."
         make -C "$HOMESTAK_DIR/$repo" install-deps 2>&1 | sed 's/^/    /'
     fi
 done
 
 #
-# Step 4: Install homestak CLI
+# Step 5: Install homestak CLI
 #
 log_info "Installing homestak CLI..."
 
@@ -130,6 +141,7 @@ usage() {
     echo "Commands:"
     echo "  playbook <name> [args]    Run an ansible playbook"
     echo "  scenario <name> [args]    Run an iac-driver scenario"
+    echo "  secrets <action>          Manage secrets (decrypt, encrypt, check)"
     echo "  install <module>          Install optional module (packer)"
     echo "  update                    Update all repositories"
     echo "  status                    Show installation status"
@@ -144,6 +156,7 @@ usage() {
     echo "  homestak pve-setup"
     echo "  homestak playbook user -e local_user=myuser"
     echo "  homestak scenario pve-configure --local"
+    echo "  homestak secrets decrypt"
     echo "  homestak install packer"
     echo ""
     exit 1
@@ -224,9 +237,31 @@ install_module() {
     esac
 }
 
+manage_secrets() {
+    local action="$1"
+    local site_config="$HOMESTAK_DIR/site-config"
+
+    if [[ ! -d "$site_config" ]]; then
+        echo -e "${RED}site-config not found${NC}"
+        exit 1
+    fi
+
+    case "$action" in
+        decrypt|encrypt|check)
+            echo -e "${GREEN}==>${NC} Running: make $action"
+            make -C "$site_config" "$action"
+            ;;
+        *)
+            echo -e "${RED}Unknown action: $action${NC}"
+            echo "Available actions: decrypt, encrypt, check"
+            exit 1
+            ;;
+    esac
+}
+
 update_repos() {
     echo -e "${GREEN}==>${NC} Updating repositories..."
-    for repo in ansible iac-driver tofu packer; do
+    for repo in site-config ansible iac-driver tofu packer; do
         local target_dir="$HOMESTAK_DIR/$repo"
         if [[ -d "$target_dir/.git" ]]; then
             echo "  $repo..."
@@ -242,7 +277,7 @@ show_status() {
     echo "Installation directory: $HOMESTAK_DIR"
     echo ""
     echo "Installed modules:"
-    for repo in ansible iac-driver tofu packer; do
+    for repo in site-config ansible iac-driver tofu packer; do
         local target_dir="$HOMESTAK_DIR/$repo"
         if [[ -d "$target_dir/.git" ]]; then
             local branch=$(git -C "$target_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
@@ -275,6 +310,10 @@ case "$CMD" in
         [[ $# -lt 1 ]] && { echo "Usage: homestak scenario <name> [args]"; exit 1; }
         run_scenario "$@"
         ;;
+    secrets)
+        [[ $# -lt 1 ]] && { echo "Usage: homestak secrets <decrypt|encrypt|check>"; exit 1; }
+        manage_secrets "$1"
+        ;;
     install)
         [[ $# -lt 1 ]] && { echo "Usage: homestak install <module>"; exit 1; }
         install_module "$1"
@@ -303,7 +342,7 @@ chmod +x "$HOMESTAK_DIR/homestak"
 ln -sf "$HOMESTAK_DIR/homestak" /usr/local/bin/homestak
 
 #
-# Step 5: Create user if requested
+# Step 6: Create user if requested
 #
 if [[ -n "$HOMESTAK_USER" ]]; then
     log_info "Creating user: $HOMESTAK_USER"
@@ -311,7 +350,7 @@ if [[ -n "$HOMESTAK_USER" ]]; then
 fi
 
 #
-# Step 6: Apply task if requested
+# Step 7: Apply task if requested
 #
 if [[ -n "$APPLY_TASK" ]]; then
     log_info "Applying task: $APPLY_TASK"

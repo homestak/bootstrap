@@ -21,11 +21,12 @@ homestak scenario pve-configure --local
 ## What It Does
 
 1. **Installs prerequisites** - git, make (minimal)
-2. **Clones core repos** - ansible, iac-driver, tofu
-3. **Runs `make install-deps`** - each repo installs its own dependencies
-4. **Installs `homestak` CLI** - unified interface for all tooling
-5. **Optionally creates user** - via `HOMESTAK_USER` env var
-6. **Optionally runs initial task** - via `HOMESTAK_APPLY` env var
+2. **Clones core repos** - site-config, ansible, iac-driver, tofu
+3. **Sets up site-config** - runs `make setup` for secrets management
+4. **Runs `make install-deps`** - each repo installs its own dependencies
+5. **Installs `homestak` CLI** - unified interface for all tooling
+6. **Optionally creates user** - via `HOMESTAK_USER` env var
+7. **Optionally runs initial task** - via `HOMESTAK_APPLY` env var
 
 ## Project Structure
 
@@ -42,6 +43,7 @@ After running install.sh:
 
 ```
 /opt/homestak/
+├── site-config/    # Site-specific secrets and configuration
 ├── ansible/        # Playbooks and roles
 ├── iac-driver/     # Orchestration engine
 ├── tofu/           # VM provisioning
@@ -58,6 +60,7 @@ After running install.sh:
 # Commands
 homestak playbook <name> [args]    # Run ansible playbook
 homestak scenario <name> [args]    # Run iac-driver scenario
+homestak secrets <action>          # Manage secrets (decrypt, encrypt, check)
 homestak install <module>          # Install optional module (packer)
 homestak update                    # Update all repositories
 homestak status                    # Show installation status
@@ -95,6 +98,7 @@ Bootstrap installs only `git` and `make`, then delegates to each repo's Makefile
 ### Core vs Optional Modules
 
 **Core (always installed):**
+- site-config - Site-specific secrets and configuration
 - ansible - Playbooks and roles
 - iac-driver - Orchestration engine
 - tofu - VM provisioning with OpenTofu
@@ -107,6 +111,7 @@ Bootstrap installs only `git` and `make`, then delegates to each repo's Makefile
 | Repo | Purpose |
 |------|---------|
 | [bootstrap](https://github.com/homestak-dev/bootstrap) | This repo - entry point |
+| [site-config](https://github.com/homestak-dev/site-config) | Site-specific secrets and configuration |
 | [ansible](https://github.com/homestak-dev/ansible) | Playbooks and roles |
 | [iac-driver](https://github.com/homestak-dev/iac-driver) | Orchestration engine |
 | [tofu](https://github.com/homestak-dev/tofu) | VM provisioning |
