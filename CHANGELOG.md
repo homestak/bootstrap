@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased
+## v0.5.0-rc1 - 2026-01-04
+
+Consolidated pre-release - unified entry point.
+
+### Highlights
+
+- curl|bash installation of full stack
+- homestak CLI for unified operations
+- site-config integration with secrets management
 
 ### Features
 
