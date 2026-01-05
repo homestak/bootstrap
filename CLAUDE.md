@@ -60,7 +60,7 @@ After running install.sh:
 # Commands
 homestak playbook <name> [args]    # Run ansible playbook
 homestak scenario <name> [args]    # Run iac-driver scenario
-homestak secrets <action>          # Manage secrets (decrypt, encrypt, check)
+homestak secrets <action>          # Manage secrets (decrypt, encrypt, check, validate)
 homestak install <module>          # Install optional module (packer)
 homestak update                    # Update all repositories
 homestak status                    # Show installation status

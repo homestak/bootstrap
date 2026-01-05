@@ -5,7 +5,7 @@
 ### Features
 
 - Add [site-config](https://github.com/homestak-dev/site-config) to core modules
-- Add `secrets` CLI command for site-config management (decrypt, encrypt, check)
+- Add `secrets` CLI command for site-config management (decrypt, encrypt, check, validate)
 
 ### Changes
 
