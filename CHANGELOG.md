@@ -1,5 +1,11 @@
 # Changelog
 
+## v0.6.0-rc1 - 2026-01-06
+
+Version alignment release - no functional changes.
+
+Aligns with v0.6.0-rc1 releases across all homestak repositories.
+
 ## v0.5.0-rc1 - 2026-01-04
 
 Consolidated pre-release - unified entry point.
