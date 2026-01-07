@@ -1,5 +1,15 @@
 # Changelog
 
+## v0.9 - 2026-01-07
+
+### Documentation
+
+- Update scenario name: `pve-configure` → `pve-setup`
+
+### Housekeeping
+
+- Version alignment with unified versioning scheme (skip from v0.6 to v0.9)
+
 ## v0.6.0-rc1 - 2026-01-06
 
 Version alignment release - no functional changes.
