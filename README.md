@@ -28,7 +28,7 @@ homestak pve-setup
 homestak playbook user -e local_user=myuser
 
 # Run a scenario
-homestak scenario pve-configure --local
+homestak scenario pve-setup --local
 
 # Change network settings
 homestak network -e pve_network_tasks='["static"]' -e pve_new_ip=10.0.12.100
