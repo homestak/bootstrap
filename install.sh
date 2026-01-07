@@ -155,7 +155,7 @@ usage() {
     echo "Examples:"
     echo "  homestak pve-setup"
     echo "  homestak playbook user -e local_user=myuser"
-    echo "  homestak scenario pve-configure --local"
+    echo "  homestak scenario pve-setup --local"
     echo "  homestak secrets decrypt"
     echo "  homestak install packer"
     echo ""

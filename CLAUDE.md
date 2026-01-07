@@ -15,7 +15,7 @@ curl -fsSL .../install.sh | HOMESTAK_USER=homestak bash
 homestak status
 homestak pve-setup
 homestak playbook user -e local_user=myuser
-homestak scenario pve-configure --local
+homestak scenario pve-setup --local
 ```
 
 ## What It Does
