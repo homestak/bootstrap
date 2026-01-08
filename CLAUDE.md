@@ -88,9 +88,9 @@ Each repo has a `Makefile` with an `install-deps` target:
 
 | Repo | Dependencies |
 |------|--------------|
-| ansible | python3, ansible, python3-pip, git, sudo |
-| iac-driver | python3 |
-| tofu | opentofu (from official repo) |
+| ansible | python3, python3-pip, python3-venv, pipx, git, sudo, ansible-core (via pipx) |
+| iac-driver | python3, python3-yaml |
+| tofu | tofu (from official OpenTofu repo) |
 | packer | packer (optional, installed via `homestak install packer`) |
 
 Bootstrap installs only `git` and `make`, then delegates to each repo's Makefile.
