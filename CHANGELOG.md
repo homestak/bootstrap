@@ -1,5 +1,18 @@
 # Changelog
 
+## v0.10 - 2026-01-08
+
+### Documentation
+
+- Fix CLAUDE.md: correct dependency table (ansible-core via pipx, python3-yaml, tofu package name)
+
+### Housekeeping
+
+- Add LICENSE file (Apache 2.0)
+- Add standard repository topics
+- Add branch protection
+- Enable secret scanning and Dependabot
+
 ## v0.9 - 2026-01-07
 
 ### Documentation
