@@ -2,7 +2,30 @@
 
 ## Unreleased
 
+### Changed
+- **BREAKING**: Refactor to FHS-compliant installation paths (#14)
+  - Code repos now installed to `/usr/local/lib/homestak/`
+  - Site-config now installed to `/usr/local/etc/homestak/`
+  - CLI symlinked from `/usr/local/bin/homestak` to source
+- Extract `homestak` CLI into standalone `homestak.sh` script (#14)
+  - Enables independent CLI updates via `homestak update`
+  - CLI auto-updates when bootstrap repo is pulled
+- Add `bootstrap` repo to installation (cloned alongside other code repos)
+- Legacy path support: CLI falls back to `/opt/homestak` if FHS paths don't exist
+
 ### Added
+- Add bats unit tests for homestak.sh (#15)
+  - 20 tests covering CLI routing, path detection, and error handling
+  - New `make test` target for running tests
+- Enhance `homestak update` command with new options (#13)
+  - `--dry-run` - preview available updates without applying
+  - `--version <tag>` - checkout specific version tag across all repos
+  - `--stash` - automatically stash uncommitted changes before updating
+  - Shows success/failure counts and handles dirty repos gracefully
+- Add `homestak preflight` command for pre-scenario validation
+  - Verifies bootstrap installation, site-init completion, PVE connectivity
+  - Supports local (default) and remote host checks
+  - Works with iac-driver's `--preflight` flag
 - Add `homestak site-init` command for site configuration initialization (#10)
   - Generates host config via `make host-config`
   - Generates node config if PVE is installed
