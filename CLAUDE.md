@@ -58,6 +58,8 @@ After running install.sh:
 
 ```bash
 # Commands
+homestak site-init [--force]       # Initialize site configuration
+homestak images <subcommand>       # Manage packer images
 homestak playbook <name> [args]    # Run ansible playbook
 homestak scenario <name> [args]    # Run iac-driver scenario
 homestak secrets <action>          # Manage secrets (decrypt, encrypt, check, validate)
@@ -65,11 +67,40 @@ homestak install <module>          # Install optional module (packer)
 homestak update                    # Update all repositories
 homestak status                    # Show installation status
 
+# Image subcommands
+homestak images list [--version <tag>]
+homestak images download <target...> [--version <tag>] [--overwrite] [--publish]
+homestak images publish [<target...>] [--overwrite]
+
 # Playbook shortcuts
 homestak pve-setup                 # Configure Proxmox host
 homestak pve-install               # Install PVE on Debian 13
 homestak user                      # User management
 homestak network                   # Network configuration
+```
+
+### Site Initialization
+
+The `site-init` command prepares a fresh system for homestak workflows:
+
+1. Generates `hosts/<hostname>.yaml` from system info
+2. Generates `nodes/<hostname>.yaml` if PVE is installed
+3. Creates SSH key (ed25519) if none exists
+4. Decrypts secrets if encrypted file exists
+
+### Image Management
+
+The `images` command manages packer images from GitHub releases:
+
+- **Download location**: `/var/tmp/homestak/images/` (persists across reboots)
+- **Publish location**: `/var/lib/vz/template/iso/` (PVE storage)
+- **Split files**: Automatically reassembles `*.partaa`, `*.partab`, etc.
+- **Resume support**: Uses `curl -C -` for interrupted downloads
+
+Typical workflow:
+```bash
+homestak images download all --publish   # Download and install all images
+homestak images list --version v0.22     # List images in specific release
 ```
 
 ## Environment Variables
