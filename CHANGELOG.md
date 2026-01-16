@@ -1,5 +1,22 @@
 # Changelog
 
+## Unreleased
+
+### Added
+- Add `homestak site-init` command for site configuration initialization (#10)
+  - Generates host config via `make host-config`
+  - Generates node config if PVE is installed
+  - Creates SSH key (ed25519) if missing
+  - Decrypts secrets if encrypted file exists
+  - Supports `--force` to overwrite existing configs
+- Add `homestak images` command for packer image management (#11)
+  - `images list [--version <tag>]` - list available images from GitHub release
+  - `images download <targets...> [--version <tag>] [--overwrite] [--publish]` - download images
+  - `images publish [<targets...>] [--overwrite]` - install images to PVE storage
+  - Downloads to `/var/tmp/homestak/images/` for persistence
+  - Supports split file reassembly for large images
+  - Graceful resume with curl `-C -` for interrupted downloads
+
 ## v0.18 - 2026-01-13
 
 - Release alignment with homestak v0.18
