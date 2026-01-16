@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.24 - 2026-01-16
 
 ### Changed
 - **BREAKING**: Refactor to FHS-compliant installation paths (#14)
