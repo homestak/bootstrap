@@ -21,38 +21,55 @@ homestak scenario pve-setup --local
 ## What It Does
 
 1. **Installs prerequisites** - git, make (minimal)
-2. **Clones core repos** - site-config, ansible, iac-driver, tofu
-3. **Sets up site-config** - runs `make setup` for secrets management
-4. **Runs `make install-deps`** - each repo installs its own dependencies
-5. **Installs `homestak` CLI** - unified interface for all tooling
-6. **Optionally creates user** - via `HOMESTAK_USER` env var
-7. **Optionally runs initial task** - via `HOMESTAK_APPLY` env var
+2. **Clones code repos** - bootstrap, ansible, iac-driver, tofu to `/usr/local/lib/homestak/`
+3. **Clones site-config** - to `/usr/local/etc/homestak/`
+4. **Sets up site-config** - runs `make setup` for secrets management
+5. **Runs `make install-deps`** - each repo installs its own dependencies
+6. **Installs `homestak` CLI** - symlink to `bootstrap/homestak.sh`
+7. **Optionally creates user** - via `HOMESTAK_USER` env var
+8. **Optionally runs initial task** - via `HOMESTAK_APPLY` env var
 
 ## Project Structure
 
 ```
 bootstrap/
 ├── install.sh      # curl|bash entry point
+├── homestak.sh     # Standalone CLI script
 ├── CLAUDE.md       # This file
 └── README.md       # User-facing documentation
 ```
 
-## Installed Structure
+## Installed Structure (FHS-compliant)
 
 After running install.sh:
 
 ```
-/opt/homestak/
-├── site-config/    # Site-specific secrets and configuration
-├── ansible/        # Playbooks and roles
-├── iac-driver/     # Orchestration engine
-├── tofu/           # VM provisioning
-├── packer/         # (optional) Image building
-└── homestak        # CLI wrapper
-
-/usr/local/bin/
-└── homestak -> /opt/homestak/homestak
+/usr/local/
+├── bin/
+│   └── homestak → ../lib/homestak/bootstrap/homestak.sh
+├── etc/
+│   └── homestak/           # site-config (configuration)
+│       ├── site.yaml
+│       ├── secrets.yaml
+│       ├── hosts/
+│       ├── nodes/
+│       ├── postures/
+│       ├── envs/
+│       └── vms/
+└── lib/
+    └── homestak/           # code repos
+        ├── bootstrap/
+        │   ├── homestak.sh
+        │   └── install.sh
+        ├── ansible/
+        ├── iac-driver/
+        ├── tofu/
+        └── packer/         # (optional)
 ```
+
+### Legacy Path Support
+
+The CLI automatically falls back to `/opt/homestak/` if FHS paths don't exist, supporting existing installations during transition.
 
 ## homestak CLI
 
@@ -64,8 +81,14 @@ homestak playbook <name> [args]    # Run ansible playbook
 homestak scenario <name> [args]    # Run iac-driver scenario
 homestak secrets <action>          # Manage secrets (decrypt, encrypt, check, validate)
 homestak install <module>          # Install optional module (packer)
-homestak update                    # Update all repositories
+homestak update [options]          # Update all repositories
+homestak preflight [host]          # Run preflight checks (local by default)
 homestak status                    # Show installation status
+
+# Update options
+homestak update --dry-run          # Preview updates without applying
+homestak update --version v0.24    # Checkout specific version across all repos
+homestak update --stash            # Stash uncommitted changes before updating
 
 # Image subcommands
 homestak images list [--version <tag>]
