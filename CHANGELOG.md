@@ -1,5 +1,23 @@
 # Changelog
 
+## Unreleased
+
+### Changed
+- **BREAKING**: Remove /opt/homestak legacy fallback (#17)
+  - FHS paths (`/usr/local/...`) are now required
+  - Existing installations at `/opt/homestak` must re-bootstrap
+
+### Added
+- Auto-add SSH key to secrets.yaml during site-init (#18)
+  - Automatically detects SSH public key after generation
+  - Adds to `ssh_keys:` section using `user@host` convention
+  - Skips if key already exists (idempotent)
+
+### Fixed
+- Fix images list to recognize multipart files (#19)
+  - Now displays split images (e.g., debian-13-pve) with "(multipart: N parts)" indicator
+  - Previously only showed whole `.qcow2` files
+
 ## v0.25 - 2026-01-16
 
 - Release alignment with homestak v0.25
