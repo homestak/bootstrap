@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.26 - 2026-01-17
 
 ### Changed
 - **BREAKING**: Remove /opt/homestak legacy fallback (#17)
