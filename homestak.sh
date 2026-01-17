@@ -16,14 +16,6 @@ HOMESTAK_ETC="/usr/local/etc/homestak"
 ANSIBLE_DIR="$HOMESTAK_LIB/ansible"
 IAC_DRIVER_DIR="$HOMESTAK_LIB/iac-driver"
 
-# Legacy path support (for transition period)
-if [[ ! -d "$HOMESTAK_LIB" && -d "/opt/homestak" ]]; then
-    HOMESTAK_LIB="/opt/homestak"
-    HOMESTAK_ETC="/opt/homestak/site-config"
-    ANSIBLE_DIR="$HOMESTAK_LIB/ansible"
-    IAC_DRIVER_DIR="$HOMESTAK_LIB/iac-driver"
-fi
-
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
@@ -428,13 +420,49 @@ site_init() {
         echo "  No encrypted secrets found"
     fi
 
+    # Step 5: Add SSH key to secrets.yaml if not already present
+    local secrets_file="$HOMESTAK_ETC/secrets.yaml"
+    if [[ -f "$secrets_file" && -f "$ssh_pub" ]]; then
+        local pub_key
+        pub_key=$(cat "$ssh_pub")
+        # Extract key identifier from comment (last field) or construct from user@host
+        local key_id
+        key_id=$(echo "$pub_key" | awk '{print $NF}')
+        if [[ -z "$key_id" || "$key_id" == "$pub_key" ]]; then
+            key_id="$(whoami)@$(hostname)"
+        fi
+
+        # Check if key already exists (by key content, not identifier)
+        local key_content
+        key_content=$(echo "$pub_key" | awk '{print $2}')
+        if grep -q "$key_content" "$secrets_file" 2>/dev/null; then
+            echo "  SSH key already in secrets.yaml"
+        else
+            # Add key to secrets.yaml under ssh_keys section
+            if grep -q "^ssh_keys:" "$secrets_file"; then
+                # ssh_keys section exists, append to it
+                # Find the line number of ssh_keys: and insert after
+                local line_num
+                line_num=$(grep -n "^ssh_keys:" "$secrets_file" | cut -d: -f1)
+                # Insert the new key after the ssh_keys: line
+                sed -i "${line_num}a\\  ${key_id}: \"${pub_key}\"" "$secrets_file"
+                echo -e "  ${GREEN}Added SSH key to secrets.yaml${NC} (${key_id})"
+            else
+                # ssh_keys section doesn't exist, append at end
+                echo "" >> "$secrets_file"
+                echo "ssh_keys:" >> "$secrets_file"
+                echo "  ${key_id}: \"${pub_key}\"" >> "$secrets_file"
+                echo -e "  ${GREEN}Added SSH key to secrets.yaml${NC} (${key_id})"
+            fi
+        fi
+    fi
+
     echo ""
     echo -e "${GREEN}==>${NC} Site initialization complete"
     echo ""
     echo "Next steps:"
     echo "  1. Review generated configs in $HOMESTAK_ETC/"
-    echo "  2. Add your SSH public key to secrets.yaml"
-    echo "  3. Run: homestak images download all --publish"
+    echo "  2. Run: homestak images download all --publish"
     echo ""
 }
 
@@ -462,14 +490,13 @@ images_list() {
         exit 1
     fi
 
-    # Filter to only .qcow2 files (not checksums or parts)
-    local images
-    images=$(echo "$assets" | grep '\.qcow2$' || true)
+    # Collect whole images (.qcow2) and split image bases (.qcow2.partaa)
+    local whole_images split_bases images
+    whole_images=$(echo "$assets" | grep '\.qcow2$' || true)
+    split_bases=$(echo "$assets" | grep '\.qcow2\.partaa$' | sed 's/\.partaa$//' || true)
 
-    if [[ -z "$images" ]]; then
-        # Check for split files
-        images=$(echo "$assets" | grep '\.qcow2\.partaa$' | sed 's/\.partaa$//' || true)
-    fi
+    # Combine and deduplicate (split bases that also have whole files shouldn't happen, but handle it)
+    images=$(printf '%s\n%s' "$whole_images" "$split_bases" | grep -v '^$' | sort -u || true)
 
     if [[ -z "$images" ]]; then
         echo "No images found in release '$version'"
@@ -478,12 +505,11 @@ images_list() {
 
     echo "Images:"
     echo "$images" | while read -r img; do
-        local size=""
-        # Check if split
+        # Check if this is a multipart image
         if echo "$assets" | grep -q "^${img}\.partaa$"; then
             local parts
             parts=$(echo "$assets" | grep "^${img}\.part" | wc -l)
-            echo "  $img (split: $parts parts)"
+            echo "  $img (multipart: $parts parts)"
         else
             echo "  $img"
         fi
