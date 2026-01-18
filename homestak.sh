@@ -432,28 +432,21 @@ site_init() {
             key_id="$(whoami)@$(hostname)"
         fi
 
-        # Check if key already exists (by key content, not identifier)
-        local key_content
-        key_content=$(echo "$pub_key" | awk '{print $2}')
-        if grep -q "$key_content" "$secrets_file" 2>/dev/null; then
-            echo "  SSH key already in secrets.yaml"
-        else
-            # Add key to secrets.yaml under ssh_keys section
-            if grep -q "^ssh_keys:" "$secrets_file"; then
-                # ssh_keys section exists, append to it
-                # Find the line number of ssh_keys: and insert after
-                local line_num
-                line_num=$(grep -n "^ssh_keys:" "$secrets_file" | cut -d: -f1)
-                # Insert the new key after the ssh_keys: line
-                sed -i "${line_num}a\\  ${key_id}: \"${pub_key}\"" "$secrets_file"
+        # Use Python script for safe YAML manipulation
+        local add_key_script="$HOMESTAK_LIB/bootstrap/scripts/add-ssh-key.py"
+        if [[ -f "$add_key_script" ]]; then
+            local result
+            result=$(python3 "$add_key_script" "$secrets_file" "$key_id" "$pub_key" 2>&1)
+            local exit_code=$?
+            if [[ $exit_code -eq 0 ]]; then
                 echo -e "  ${GREEN}Added SSH key to secrets.yaml${NC} (${key_id})"
+            elif [[ $exit_code -eq 2 ]]; then
+                echo "  SSH key already in secrets.yaml"
             else
-                # ssh_keys section doesn't exist, append at end
-                echo "" >> "$secrets_file"
-                echo "ssh_keys:" >> "$secrets_file"
-                echo "  ${key_id}: \"${pub_key}\"" >> "$secrets_file"
-                echo -e "  ${GREEN}Added SSH key to secrets.yaml${NC} (${key_id})"
+                echo -e "  ${RED}Failed to add SSH key: $result${NC}"
             fi
+        else
+            echo -e "  ${YELLOW}Warning: add-ssh-key.py not found, skipping key injection${NC}"
         fi
     fi
 

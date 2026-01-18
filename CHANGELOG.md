@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+### Fixed
+- Fix site-init corrupts secrets.yaml indentation (#21)
+  - Replace sed-based YAML manipulation with Python script
+  - New `scripts/add-ssh-key.py` uses PyYAML for safe YAML handling
+  - Preserves existing file structure and indentation
+
 ## v0.29 - 2026-01-18
 
 ### Added
