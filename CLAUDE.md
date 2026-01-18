@@ -102,6 +102,17 @@ homestak user                      # User management
 homestak network                   # Network configuration
 ```
 
+### Execution Requirements
+
+FHS installations (`/usr/local/lib/homestak/`) are root-owned, so scenario execution requires sudo:
+
+```bash
+sudo homestak scenario vm-roundtrip --host father
+sudo homestak playbook pve-setup
+```
+
+Commands that only read configuration (status, preflight, images list) work without sudo.
+
 ### Site Initialization
 
 The `site-init` command prepares a fresh system for homestak workflows:
