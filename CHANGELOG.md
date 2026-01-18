@@ -1,5 +1,21 @@
 # Changelog
 
+## v0.29 - 2026-01-18
+
+### Added
+- Document sudo requirement for FHS installations in CLAUDE.md
+
+### Known Issues
+- site-init corrupts secrets.yaml indentation when adding SSH key (#21)
+
+## v0.28 - 2026-01-18
+
+- Release alignment with homestak v0.28
+
+## v0.27 - 2026-01-17
+
+- Release alignment with homestak v0.27
+
 ## v0.26 - 2026-01-17
 
 ### Changed
