@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v0.30 - 2026-01-18
 
 ### Fixed
 - Fix site-init corrupts secrets.yaml indentation (#21)
