@@ -1,5 +1,16 @@
 # Changelog
 
+## v0.32 - 2026-01-19
+
+### Added
+- Add `--version` and `--verbose` to homestak.sh CLI (#22, #23)
+- Add `--help` to install.sh (#22)
+- Git-derived version pattern (no hardcoded VERSION constants)
+
+## v0.31 - 2026-01-19
+
+- Release alignment with homestak v0.31
+
 ## v0.30 - 2026-01-18
 
 ### Fixed
