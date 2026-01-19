@@ -10,6 +10,13 @@
 #
 set -euo pipefail
 
+# Git-derived version (do not use hardcoded VERSION constant)
+get_version() {
+    git -C "$(dirname "$0")" describe --tags --abbrev=0 2>/dev/null || echo "dev"
+}
+
+VERBOSE=false
+
 # FHS-compliant paths
 HOMESTAK_LIB="/usr/local/lib/homestak"
 HOMESTAK_ETC="/usr/local/etc/homestak"
@@ -22,7 +29,7 @@ YELLOW='\033[1;33m'
 NC='\033[0m'
 
 usage() {
-    echo "Homestak CLI"
+    echo "homestak $(get_version) - Unified interface for homestak IAC tooling"
     echo ""
     echo "Usage: homestak <command> [options]"
     echo ""
@@ -36,6 +43,11 @@ usage() {
     echo "  update [options]          Update all repositories"
     echo "  preflight [host]          Run preflight checks (local by default)"
     echo "  status                    Show installation status"
+    echo ""
+    echo "Global options:"
+    echo "  --help, -h                Show this help message"
+    echo "  --version                 Show version"
+    echo "  --verbose, -v             Enable verbose output"
     echo ""
     echo "Update options:"
     echo "  --dry-run                 Show what would be updated without making changes"
@@ -54,6 +66,7 @@ usage() {
     echo "  network                   Network configuration"
     echo ""
     echo "Examples:"
+    echo "  homestak --version"
     echo "  homestak site-init"
     echo "  homestak images download all --publish"
     echo "  homestak pve-setup"
@@ -713,8 +726,32 @@ images_publish() {
 # Main
 [[ $# -lt 1 ]] && usage
 
+# Parse global options first
+PASSTHROUGH_ARGS=()
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --version)
+            echo "homestak $(get_version)"
+            exit 0
+            ;;
+        --verbose|-v)
+            VERBOSE=true
+            PASSTHROUGH_ARGS+=("$1")
+            shift
+            ;;
+        *)
+            break
+            ;;
+    esac
+done
+
+[[ $# -lt 1 ]] && usage
+
 CMD="$1"
 shift
+
+# Append any remaining passthrough args
+PASSTHROUGH_ARGS+=("$@")
 
 case "$CMD" in
     site-init)

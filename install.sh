@@ -23,6 +23,60 @@
 #
 set -euo pipefail
 
+# Handle --help flag
+show_help() {
+    cat << 'EOF'
+Homestak Bootstrap - Install homestak IAC tooling
+
+Usage:
+  curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh | bash
+
+  Or run directly:
+  ./install.sh [options]
+
+Options:
+  --help, -h    Show this help message
+
+Environment Variables:
+  HOMESTAK_BRANCH    Git branch to use (default: master)
+  HOMESTAK_USER      Create a sudo user during bootstrap
+  HOMESTAK_APPLY     Run a task after bootstrap (e.g., pve-setup)
+
+Installation Paths (FHS-compliant):
+  /usr/local/bin/homestak      CLI symlink
+  /usr/local/etc/homestak/     site-config (configuration)
+  /usr/local/lib/homestak/     code repos
+
+Modules Installed:
+  - bootstrap      Entry point, CLI
+  - ansible        Playbooks and roles
+  - iac-driver     Orchestration engine
+  - tofu           VM provisioning
+  - site-config    Configuration and secrets
+
+Examples:
+  # Basic bootstrap
+  curl -fsSL .../install.sh | bash
+
+  # Bootstrap with user creation and pve-setup
+  curl -fsSL .../install.sh | HOMESTAK_USER=homestak HOMESTAK_APPLY=pve-setup bash
+
+  # Use develop branch
+  curl -fsSL .../install.sh | HOMESTAK_BRANCH=develop bash
+
+  # Show help
+  curl -fsSL .../install.sh | bash -s -- --help
+
+For more information: https://github.com/homestak-dev
+EOF
+    exit 0
+}
+
+# Parse arguments (only when not piped)
+if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
+    show_help
+fi
+
 # FHS-compliant installation paths
 HOMESTAK_LIB="/usr/local/lib/homestak"   # Code repos
 HOMESTAK_ETC="/usr/local/etc/homestak"   # Configuration (site-config)

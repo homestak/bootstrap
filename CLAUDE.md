@@ -11,6 +11,9 @@ curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/insta
 # Bootstrap with user creation
 curl -fsSL .../install.sh | HOMESTAK_USER=homestak bash
 
+# View install.sh options (download first)
+./install.sh --help
+
 # After bootstrap, use the 'homestak' command
 homestak status
 homestak pve-setup
@@ -74,6 +77,11 @@ The CLI automatically falls back to `/opt/homestak/` if FHS paths don't exist, s
 ## homestak CLI
 
 ```bash
+# Global options
+homestak --version                 # Show CLI version
+homestak --verbose <command>       # Enable verbose output
+homestak --help                    # Show help message
+
 # Commands
 homestak site-init [--force]       # Initialize site configuration
 homestak images <subcommand>       # Manage packer images
