@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.37 - 2026-01-20
+
 ### Theme: Source-Agnostic Bootstrap
 
 ### Added
