@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+### Theme: Source-Agnostic Bootstrap
+
+### Added
+- Add `--source` and `--ref` flags for flexible installation sources (bootstrap#25)
+  - `--source` accepts: `github` (default), `http://host:port`, `file:///path`
+  - `--ref` accepts: branch names, tags, `_working` (for dev workflow)
+  - HTTP sources require explicit `--ref` and `HOMESTAK_TOKEN`
+  - site-config skipped for HTTP sources (ansible handles secrets separately)
+
+- Add `--version` flag to show install.sh version
+
+- Add `HOMESTAK_DEST` environment variable for test isolation
+  - Allows non-root testing with custom installation directory
+
+### Changed
+- Refactored clone logic to use source type detection
+- Updated help text with comprehensive source type documentation
+
 ## v0.32 - 2026-01-19
 
 ### Added

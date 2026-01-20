@@ -6,24 +6,37 @@
 # Usage:
 #   curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh | bash
 #
-# Options (via environment variables):
-#   HOMESTAK_BRANCH=develop  Use a different branch
-#   HOMESTAK_USER=homestak   Create a sudo user during bootstrap
-#   HOMESTAK_APPLY=pve-setup Run a task after bootstrap
+# Options:
+#   --source URL       Installation source (github, http://..., file://...)
+#   --ref REF          Git ref to checkout (branch, tag, or _working)
+#   --help             Show help message
+#   --version          Show version
+#
+# Environment Variables:
+#   HOMESTAK_SOURCE    Installation source (overridden by --source)
+#   HOMESTAK_REF       Git ref (overridden by --ref)
+#   HOMESTAK_TOKEN     Auth token for HTTP sources (required)
+#   HOMESTAK_USER      Create a sudo user during bootstrap
+#   HOMESTAK_APPLY     Run a task after bootstrap (e.g., pve-setup)
 #
 # Examples:
-#   # Basic bootstrap
+#   # Basic bootstrap from GitHub
 #   curl -fsSL .../install.sh | bash
 #
-#   # Bootstrap with user creation and pve-setup
-#   curl -fsSL .../install.sh | HOMESTAK_USER=homestak HOMESTAK_APPLY=pve-setup bash
+#   # Pin to specific version
+#   curl -fsSL .../install.sh | HOMESTAK_REF=v0.37 bash
 #
-#   # Use develop branch
-#   curl -fsSL .../install.sh | HOMESTAK_BRANCH=develop bash
+#   # Bootstrap from HTTP server (dev workflow)
+#   HOMESTAK_SOURCE=http://192.0.2.1:54321 \
+#   HOMESTAK_TOKEN=a7Bx9kLmN2pQ4rSt \
+#   HOMESTAK_REF=_working \
+#   ./install.sh
 #
 set -euo pipefail
 
-# Handle --help flag
+VERSION="0.37"
+
+# Show help
 show_help() {
     cat << 'EOF'
 Homestak Bootstrap - Install homestak IAC tooling
@@ -35,34 +48,50 @@ Usage:
   ./install.sh [options]
 
 Options:
-  --help, -h    Show this help message
+  --source URL       Installation source (default: github)
+                     - github or https://github.com/... (GitHub)
+                     - http://host:port (HTTP server - requires --ref and HOMESTAK_TOKEN)
+                     - file:///path (local filesystem)
+  --ref REF          Git ref to checkout (default: master for github/file)
+                     - master, main (branches)
+                     - v0.37 (tags)
+                     - _working (working tree state from serve-repos.sh)
+  --help, -h         Show this help message
+  --version          Show version
 
 Environment Variables:
-  HOMESTAK_BRANCH    Git branch to use (default: master)
+  HOMESTAK_SOURCE    Installation source (overridden by --source)
+  HOMESTAK_REF       Git ref (overridden by --ref)
+  HOMESTAK_TOKEN     Auth token for HTTP sources (required for http://)
   HOMESTAK_USER      Create a sudo user during bootstrap
   HOMESTAK_APPLY     Run a task after bootstrap (e.g., pve-setup)
+  HOMESTAK_DEST      Custom installation directory (for testing)
 
 Installation Paths (FHS-compliant):
   /usr/local/bin/homestak      CLI symlink
   /usr/local/etc/homestak/     site-config (configuration)
   /usr/local/lib/homestak/     code repos
 
-Modules Installed:
-  - bootstrap      Entry point, CLI
-  - ansible        Playbooks and roles
-  - iac-driver     Orchestration engine
-  - tofu           VM provisioning
-  - site-config    Configuration and secrets
+Source Types:
+  github   Default. Clones from GitHub, includes site-config.
+  http://  Dev workflow. Requires --ref and HOMESTAK_TOKEN. Skips site-config.
+  file://  Air-gapped. Clones from local path.
 
 Examples:
-  # Basic bootstrap
+  # Basic bootstrap from GitHub
   curl -fsSL .../install.sh | bash
 
-  # Bootstrap with user creation and pve-setup
-  curl -fsSL .../install.sh | HOMESTAK_USER=homestak HOMESTAK_APPLY=pve-setup bash
+  # Pin to specific version
+  curl -fsSL .../install.sh | HOMESTAK_REF=v0.37 bash
 
-  # Use develop branch
-  curl -fsSL .../install.sh | HOMESTAK_BRANCH=develop bash
+  # Bootstrap from HTTP server (dev workflow)
+  HOMESTAK_SOURCE=http://192.0.2.1:54321 \
+  HOMESTAK_TOKEN=a7Bx9kLmN2pQ4rSt \
+  HOMESTAK_REF=_working \
+  ./install.sh
+
+  # Air-gapped installation
+  ./install.sh --source file:///mnt/usb/homestak --ref v0.37
 
   # Show help
   curl -fsSL .../install.sh | bash -s -- --help
@@ -72,23 +101,95 @@ EOF
     exit 0
 }
 
-# Parse arguments (only when not piped)
-if [[ "${1:-}" == "--help" || "${1:-}" == "-h" ]]; then
-    show_help
-fi
+# Parse arguments
+parse_args() {
+    while [[ $# -gt 0 ]]; do
+        case $1 in
+            --source)
+                HOMESTAK_SOURCE="$2"
+                shift 2
+                ;;
+            --ref)
+                HOMESTAK_REF="$2"
+                shift 2
+                ;;
+            --version)
+                echo "install.sh v$VERSION"
+                exit 0
+                ;;
+            --help|-h)
+                show_help
+                ;;
+            *)
+                log_error "Unknown option: $1"
+                echo "Use --help for usage information"
+                exit 1
+                ;;
+        esac
+    done
+}
 
-# FHS-compliant installation paths
-HOMESTAK_LIB="/usr/local/lib/homestak"   # Code repos
-HOMESTAK_ETC="/usr/local/etc/homestak"   # Configuration (site-config)
-HOMESTAK_BIN="/usr/local/bin"            # CLI symlink
+parse_args "$@"
+
+# FHS-compliant installation paths (can be overridden for testing)
+HOMESTAK_LIB="${HOMESTAK_DEST:-/usr/local/lib/homestak}"   # Code repos
+HOMESTAK_ETC="${HOMESTAK_DEST:+${HOMESTAK_DEST}/etc}"
+HOMESTAK_ETC="${HOMESTAK_ETC:-/usr/local/etc/homestak}"    # Configuration (site-config)
+HOMESTAK_BIN="${HOMESTAK_DEST:+${HOMESTAK_DEST}/bin}"
+HOMESTAK_BIN="${HOMESTAK_BIN:-/usr/local/bin}"             # CLI symlink
 
 GITHUB_ORG="https://github.com/homestak-dev"
-BRANCH="${HOMESTAK_BRANCH:-master}"
 HOMESTAK_USER="${HOMESTAK_USER:-}"
 APPLY_TASK="${HOMESTAK_APPLY:-}"
 
 # Code repos (cloned to HOMESTAK_LIB)
 CODE_REPOS=(bootstrap ansible iac-driver tofu)
+
+# Source detection and configuration
+SOURCE_TYPE=""
+BASE_URL=""
+REF=""
+SKIP_SITE_CONFIG=false
+
+detect_source() {
+    local source="${HOMESTAK_SOURCE:-github}"
+
+    case "$source" in
+        github|https://github.com/*)
+            SOURCE_TYPE="github"
+            BASE_URL="$GITHUB_ORG"
+            REF="${HOMESTAK_REF:-master}"
+            SKIP_SITE_CONFIG=false
+            ;;
+        http://*)
+            SOURCE_TYPE="http"
+            BASE_URL="$source"
+            REF="${HOMESTAK_REF:-}"
+            SKIP_SITE_CONFIG=true  # Ansible handles secrets separately
+
+            # Validate HTTP source requirements
+            if [[ -z "$REF" ]]; then
+                log_error "HTTP source requires --ref (e.g., master, v0.37, _working)"
+                exit 1
+            fi
+            if [[ -z "${HOMESTAK_TOKEN:-}" ]]; then
+                log_error "HTTP source requires HOMESTAK_TOKEN"
+                exit 1
+            fi
+            ;;
+        file://*)
+            SOURCE_TYPE="file"
+            BASE_URL="${source#file://}"
+            REF="${HOMESTAK_REF:-master}"
+            SKIP_SITE_CONFIG=false
+            ;;
+        *)
+            log_error "Unknown source type: $source"
+            echo "Expected: github, http://..., or file://..."
+            exit 1
+            ;;
+    esac
+}
 
 # Colors
 RED='\033[0;31m'
@@ -100,15 +201,19 @@ log_info() { echo -e "${GREEN}==>${NC} $1"; }
 log_warn() { echo -e "${YELLOW}==>${NC} $1"; }
 log_error() { echo -e "${RED}==>${NC} $1"; }
 
-# Must run as root
-if [[ $EUID -ne 0 ]]; then
+# Must run as root (skip check if HOMESTAK_DEST is set for testing)
+if [[ -z "${HOMESTAK_DEST:-}" ]] && [[ $EUID -ne 0 ]]; then
     log_error "This script must be run as root"
     echo "Usage: curl -fsSL .../install.sh | sudo bash"
     exit 1
 fi
 
+# Detect and configure source
+detect_source
+
 log_info "Homestak Bootstrap"
-log_info "Branch: $BRANCH"
+log_info "Source: $SOURCE_TYPE ($BASE_URL)"
+log_info "Ref: $REF"
 
 #
 # Step 1: Install minimal prerequisites
@@ -127,19 +232,37 @@ mkdir -p "$HOMESTAK_ETC"
 clone_or_update() {
     local repo_name="$1"
     local target_dir="$2"
-    local repo_url="${GITHUB_ORG}/${repo_name}.git"
+    local repo_url
+    local git_opts=()
+
+    # Build URL and options based on source type
+    case "$SOURCE_TYPE" in
+        github)
+            repo_url="${BASE_URL}/${repo_name}.git"
+            ;;
+        http)
+            repo_url="${BASE_URL}/${repo_name}.git"
+            # Add auth header for HTTP sources
+            git_opts+=(-c "http.extraHeader=Authorization: Bearer ${HOMESTAK_TOKEN}")
+            ;;
+        file)
+            repo_url="${BASE_URL}/${repo_name}"
+            ;;
+    esac
 
     if [[ -d "$target_dir/.git" ]]; then
         log_info "  Updating $repo_name..."
-        git -C "$target_dir" fetch -q origin
-        git -C "$target_dir" checkout -q "$BRANCH" 2>/dev/null || \
-            git -C "$target_dir" checkout -q "origin/$BRANCH" 2>/dev/null || true
-        git -C "$target_dir" pull -q origin "$BRANCH" 2>/dev/null || true
+        git "${git_opts[@]}" -C "$target_dir" fetch -q origin 2>/dev/null || true
+        git -C "$target_dir" checkout -q "$REF" 2>/dev/null || \
+            git -C "$target_dir" checkout -q "origin/$REF" 2>/dev/null || true
+        git "${git_opts[@]}" -C "$target_dir" pull -q origin "$REF" 2>/dev/null || true
     else
         [[ -d "$target_dir" ]] && rm -rf "$target_dir"
-        log_info "  Cloning $repo_name..."
-        git clone -q -b "$BRANCH" "$repo_url" "$target_dir" 2>/dev/null || \
-            git clone -q "$repo_url" "$target_dir"
+        log_info "  Cloning $repo_name from $SOURCE_TYPE ($REF)..."
+        if ! git "${git_opts[@]}" clone -q -b "$REF" "$repo_url" "$target_dir" 2>&1; then
+            log_error "Failed to clone $repo_name"
+            return 1
+        fi
     fi
 }
 
@@ -148,15 +271,23 @@ for repo in "${CODE_REPOS[@]}"; do
     clone_or_update "$repo" "$HOMESTAK_LIB/$repo"
 done
 
-# Clone site-config to /usr/local/etc/homestak/
-clone_or_update "site-config" "$HOMESTAK_ETC"
+# Clone site-config to /usr/local/etc/homestak/ (skip for HTTP sources)
+if [[ "$SKIP_SITE_CONFIG" == true ]]; then
+    log_info "  Skipping site-config (will be configured separately for HTTP source)"
+else
+    clone_or_update "site-config" "$HOMESTAK_ETC"
+fi
 
 #
 # Step 3: Setup site-config
 #
-log_info "Setting up site-config..."
-if [[ -f "$HOMESTAK_ETC/Makefile" ]]; then
-    make -C "$HOMESTAK_ETC" setup 2>&1 | sed 's/^/    /' || true
+if [[ "$SKIP_SITE_CONFIG" != true ]]; then
+    log_info "Setting up site-config..."
+    if [[ -f "$HOMESTAK_ETC/Makefile" ]]; then
+        make -C "$HOMESTAK_ETC" setup 2>&1 | sed 's/^/    /' || true
+    fi
+else
+    log_info "Skipping site-config setup (HTTP source)"
 fi
 
 # Export for iac-driver discovery
@@ -205,15 +336,22 @@ echo -e "${GREEN}  Homestak Bootstrap Complete${NC}"
 echo -e "${GREEN}════════════════════════════════════════${NC}"
 echo ""
 echo "Installation:"
+echo "  Source:      $SOURCE_TYPE ($REF)"
 echo "  Code repos:  $HOMESTAK_LIB"
-echo "  Config:      $HOMESTAK_ETC"
+if [[ "$SKIP_SITE_CONFIG" != true ]]; then
+    echo "  Config:      $HOMESTAK_ETC"
+fi
 echo "  CLI:         $HOMESTAK_BIN/homestak"
 echo ""
 echo "Modules:"
 for repo in "${CODE_REPOS[@]}"; do
     echo "  - $repo"
 done
-echo "  - site-config"
+if [[ "$SKIP_SITE_CONFIG" != true ]]; then
+    echo "  - site-config"
+else
+    echo "  - site-config (skipped - configure separately)"
+fi
 echo ""
 echo "Quick start:"
 echo "  homestak status              # Check installation"
