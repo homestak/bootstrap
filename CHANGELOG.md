@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.38 - 2026-01-21
+
 ### Fixed
 - Fix bats test assertions to match current help text format (#26)
 - Remove obsolete legacy path test (legacy support removed in v0.26)
