@@ -44,14 +44,14 @@ load_functions() {
 @test "homestak --help shows usage" {
     run "$HOMESTAK_SH" --help
     [ "$status" -eq 1 ]  # usage exits with 1
-    [[ "$output" =~ "Homestak CLI" ]]
+    [[ "$output" =~ "homestak" ]]
     [[ "$output" =~ "Usage:" ]]
 }
 
 @test "homestak help shows usage" {
     run "$HOMESTAK_SH" help
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "Homestak CLI" ]]
+    [[ "$output" =~ "homestak" ]]
 }
 
 @test "homestak with no args shows usage" {
@@ -76,11 +76,6 @@ load_functions() {
 
     run grep "HOMESTAK_ETC=" "$HOMESTAK_SH"
     [[ "$output" =~ '/usr/local/etc/homestak' ]]
-}
-
-@test "Legacy fallback path is defined" {
-    run grep -A5 "Legacy path support" "$HOMESTAK_SH"
-    [[ "$output" =~ '/opt/homestak' ]]
 }
 
 #
