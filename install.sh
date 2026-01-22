@@ -165,7 +165,7 @@ detect_source() {
             SOURCE_TYPE="http"
             BASE_URL="$source"
             REF="${HOMESTAK_REF:-}"
-            SKIP_SITE_CONFIG=true  # Ansible handles secrets separately
+            SKIP_SITE_CONFIG=false  # Clone site-config (secrets copied separately)
 
             # Validate HTTP source requirements
             if [[ -z "$REF" ]]; then
@@ -219,6 +219,7 @@ log_info "Ref: $REF"
 # Step 1: Install minimal prerequisites
 #
 log_info "Installing prerequisites (git, make)..."
+export DEBIAN_FRONTEND=noninteractive  # Prevent debconf prompts in non-TTY environments
 apt-get update -qq
 apt-get install -y -qq git make > /dev/null
 

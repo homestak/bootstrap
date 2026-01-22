@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Fixed
+- Fix site-config clone for HTTP sources (iac-driver#116)
+  - Changed SKIP_SITE_CONFIG from true to false for HTTP sources
+  - site-config is now cloned; secrets are copied separately by iac-driver
+- Add DEBIAN_FRONTEND=noninteractive for apt-get in non-TTY environments
+
 ## v0.38 - 2026-01-21
 
 ### Fixed
