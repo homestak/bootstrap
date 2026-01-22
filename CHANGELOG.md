@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.39 - 2026-01-22
+
 ### Fixed
 - Fix site-config clone for HTTP sources (iac-driver#116)
   - Changed SKIP_SITE_CONFIG from true to false for HTTP sources
