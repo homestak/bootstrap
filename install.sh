@@ -9,6 +9,7 @@
 # Options:
 #   --source URL       Installation source (github, http://..., file://...)
 #   --ref REF          Git ref to checkout (branch, tag, or _working)
+#   --skip-apt-wait    Skip waiting for apt processes (use when apt is idle)
 #   --help             Show help message
 #   --version          Show version
 #
@@ -56,6 +57,8 @@ Options:
                      - master, main (branches)
                      - v0.37 (tags)
                      - _working (working tree state from serve-repos.sh)
+  --skip-apt-wait    Skip waiting for apt processes to complete
+                     Use when apt is known to be idle (e.g., dedicated VMs)
   --help, -h         Show this help message
   --version          Show version
 
@@ -102,6 +105,8 @@ EOF
 }
 
 # Parse arguments
+SKIP_APT_WAIT=false
+
 parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
@@ -112,6 +117,10 @@ parse_args() {
             --ref)
                 HOMESTAK_REF="$2"
                 shift 2
+                ;;
+            --skip-apt-wait)
+                SKIP_APT_WAIT=true
+                shift
                 ;;
             --version)
                 echo "install.sh v$VERSION"
@@ -216,12 +225,76 @@ log_info "Source: $SOURCE_TYPE ($BASE_URL)"
 log_info "Ref: $REF"
 
 #
+# Step 0: Stop apt timers to prevent lock contention
+#
+# unattended-upgrades runs via apt-daily.timer and apt-daily-upgrade.timer.
+# These can grab apt locks at unpredictable times (RandomizedDelaySec up to 60min).
+# Stop them before any apt operations to ensure deterministic behavior.
+# Timers re-enable automatically on next reboot.
+#
+# Use --skip-apt-wait to bypass this when apt is known to be idle.
+#
+if [[ "$SKIP_APT_WAIT" == true ]]; then
+    log_info "Skipping apt wait (--skip-apt-wait)"
+else
+    log_info "Stopping apt timers to prevent lock contention..."
+    systemctl stop apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
+    systemctl stop apt-daily.service apt-daily-upgrade.service 2>/dev/null || true
+
+    # Brief delay to allow services to fully release locks
+    sleep 2
+
+    # Wait for apt processes to finish (apt-daily may have already started apt-get)
+    log_info "Waiting for apt processes to complete..."
+    max_wait=120
+    waited=0
+    # Check for apt-get, apt, or dpkg processes
+    # Note: pgrep -x doesn't support regex, so check each process separately
+    while pgrep -x apt-get >/dev/null 2>&1 || pgrep -x apt >/dev/null 2>&1 || pgrep -x dpkg >/dev/null 2>&1; do
+        if [ $waited -ge $max_wait ]; then
+            log_warn "Timeout waiting for apt processes after ${max_wait}s, proceeding anyway"
+            break
+        fi
+        sleep 2
+        waited=$((waited + 2))
+    done
+fi
+
+#
 # Step 1: Install minimal prerequisites
 #
 log_info "Installing prerequisites (git, make)..."
 export DEBIAN_FRONTEND=noninteractive  # Prevent debconf prompts in non-TTY environments
-apt-get update -qq
-apt-get install -y -qq git make > /dev/null
+
+# Retry apt-get with exponential backoff for lock contention
+apt_retry() {
+    local cmd="$1"
+    local max_attempts=5
+    local attempt=1
+    local delay=2
+
+    while [ $attempt -le $max_attempts ]; do
+        if $cmd; then
+            return 0
+        fi
+        if [ $attempt -lt $max_attempts ]; then
+            log_warn "apt command failed (attempt $attempt/$max_attempts), retrying in ${delay}s..."
+            sleep $delay
+            delay=$((delay * 2))
+        fi
+        attempt=$((attempt + 1))
+    done
+    return 1
+}
+
+apt_retry "apt-get -o DPkg::Lock::Timeout=60 update -qq" || {
+    log_error "apt-get update failed after multiple attempts"
+    exit 1
+}
+apt_retry "apt-get -o DPkg::Lock::Timeout=60 install -y -qq git make" || {
+    log_error "apt-get install failed after multiple attempts"
+    exit 1
+}
 
 #
 # Step 2: Clone/update homestak repos

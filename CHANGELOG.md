@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added
+- Add `--skip-apt-wait` flag to bypass apt process waiting (bootstrap#30)
+  - Use when apt is known to be idle (e.g., dedicated VMs without unattended-upgrades)
+  - Reduces bootstrap time by skipping timer stop and process wait
+
+### Fixed
+- Fix apt lock contention with unattended-upgrades (iac-driver#132, bootstrap#30)
+  - Stop apt-daily.timer and apt-daily-upgrade.timer before apt operations
+  - Wait for apt-daily services to fully stop before proceeding
+  - Use DPkg::Lock::Timeout=60 for apt-get to wait for locks instead of failing
+  - Timers re-enable automatically on next reboot
+  - Ensures deterministic bootstrap behavior on freshly provisioned VMs
+
 ## v0.39 - 2026-01-22
 
 ### Fixed
