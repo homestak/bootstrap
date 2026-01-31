@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.41 - 2026-01-31
+
 ### Added
 - Add `--skip-apt-wait` flag to bypass apt process waiting (bootstrap#30)
   - Use when apt is known to be idle (e.g., dedicated VMs without unattended-upgrades)
