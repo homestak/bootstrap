@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+### Added
+- Add `spec` subcommand group for VM specification management (#152)
+  - `spec validate` - Validates specs against v2/defs/spec.schema.json schema
+  - Supports `--json` flag for machine-readable output
+  - Exit codes: 0=valid, 1=invalid, 2=error
+  - Schema path derived from spec file location (works in dev workspace)
+- Make HOMESTAK_LIB and HOMESTAK_ETC environment-overridable for development
+
 ## v0.41 - 2026-01-31
 
 ### Added
