@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+### Added
+- Add `homestak serve` command for spec discovery server (#153)
+  - HTTP server on port 44443 serving specs from site-config/v2/specs/
+  - Posture-based authentication (network, site_token, node_token)
+  - SIGHUP handler to clear cache without restart
+  - Error codes E100-E501 per design spec
+- Add `homestak spec get` command for fetching specs from server (#153)
+  - HTTP client to fetch resolved specs
+  - CLI flags: `--server`, `--identity`, `--token`, `--insecure`
+  - Environment variable support: `HOMESTAK_DISCOVERY`, `HOMESTAK_IDENTITY`, `HOMESTAK_AUTH_TOKEN`
+  - State persistence to `/usr/local/etc/homestak/state/spec.yaml`
+  - Previous spec backed up to `spec.yaml.prev`
+
 ## v0.43 - 2026-02-01
 
 ### Added
