@@ -40,6 +40,7 @@ usage() {
     echo "  scenario <name> [args]    Run an iac-driver scenario"
     echo "  secrets <action>          Manage secrets (decrypt, encrypt, check, validate)"
     echo "  spec <subcommand>         Manage VM specifications"
+    echo "  serve [options]           Start spec discovery server"
     echo "  install <module>          Install optional module (packer)"
     echo "  update [options]          Update all repositories"
     echo "  preflight [host]          Run preflight checks (local by default)"
@@ -63,6 +64,9 @@ usage() {
     echo "Spec subcommands:"
     echo "  spec validate <path> [--json]"
     echo ""
+    echo "Serve options:"
+    echo "  serve [--port 44443] [--bind 0.0.0.0] [--verbose]"
+    echo ""
     echo "Playbook shortcuts:"
     echo "  pve-setup                 Configure Proxmox host"
     echo "  pve-install               Install PVE on Debian 13"
@@ -84,6 +88,7 @@ usage() {
     echo "  homestak preflight mother"
     echo "  homestak spec validate v2/specs/pve.yaml"
     echo "  homestak spec validate v2/specs/pve.yaml --json"
+    echo "  homestak serve --port 44443"
     echo ""
     exit 1
 }
@@ -936,6 +941,11 @@ case "$CMD" in
             validate) spec_validate "$@" ;;
             *) echo -e "${RED}Unknown spec subcommand: $SUBCMD${NC}"; exit 1 ;;
         esac
+        ;;
+    serve)
+        # Run the serve module
+        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+        PYTHONPATH="$SCRIPT_DIR" python3 -m lib.serve "$@"
         ;;
     # Playbook shortcuts
     pve-setup|pve-install|user|network)
