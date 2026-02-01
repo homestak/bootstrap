@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Added
+- Add CI workflow with shellcheck, pylint, and bats tests (#163)
 - Add `homestak serve` command for spec discovery server (#153)
   - HTTP server on port 44443 serving specs from site-config/v2/specs/
   - Posture-based authentication (network, site_token, node_token)
