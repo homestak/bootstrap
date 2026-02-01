@@ -249,7 +249,11 @@ spec_validate() {
         exit 2
     fi
 
-    local schema_path="$HOMESTAK_ETC/v2/defs/spec.schema.json"
+    # Derive schema path from spec file location (both in same repo)
+    # spec: .../v2/specs/foo.yaml → schema: .../v2/defs/spec.schema.json
+    local spec_dir
+    spec_dir="$(cd "$(dirname "$spec_path")" && pwd)"
+    local schema_path="${spec_dir}/../defs/spec.schema.json"
     if [[ ! -f "$schema_path" ]]; then
         if [[ "$json_output" == "true" ]]; then
             echo '{"valid": false, "error": "Schema not found: '"$schema_path"'"}'
