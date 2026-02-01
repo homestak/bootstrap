@@ -39,7 +39,7 @@ usage() {
     echo "  playbook <name> [args]    Run an ansible playbook"
     echo "  scenario <name> [args]    Run an iac-driver scenario"
     echo "  secrets <action>          Manage secrets (decrypt, encrypt, check, validate)"
-    echo "  validate-spec <path>      Validate a VM specification against schema"
+    echo "  spec <subcommand>         Manage VM specifications"
     echo "  install <module>          Install optional module (packer)"
     echo "  update [options]          Update all repositories"
     echo "  preflight [host]          Run preflight checks (local by default)"
@@ -60,6 +60,9 @@ usage() {
     echo "  images download <target...> [--version <tag>] [--overwrite] [--publish]"
     echo "  images publish [<target...>] [--overwrite]"
     echo ""
+    echo "Spec subcommands:"
+    echo "  spec validate <path> [--json]"
+    echo ""
     echo "Playbook shortcuts:"
     echo "  pve-setup                 Configure Proxmox host"
     echo "  pve-install               Install PVE on Debian 13"
@@ -79,8 +82,8 @@ usage() {
     echo "  homestak update --version v0.24"
     echo "  homestak preflight"
     echo "  homestak preflight mother"
-    echo "  homestak validate-spec v2/specs/pve.yaml"
-    echo "  homestak validate-spec v2/specs/pve.yaml --json"
+    echo "  homestak spec validate v2/specs/pve.yaml"
+    echo "  homestak spec validate v2/specs/pve.yaml --json"
     echo ""
     exit 1
 }
@@ -198,7 +201,7 @@ manage_secrets() {
     esac
 }
 
-validate_spec() {
+spec_validate() {
     local spec_path=""
     local json_output=false
 
@@ -219,7 +222,7 @@ validate_spec() {
     done
 
     if [[ -z "$spec_path" ]]; then
-        echo "Usage: homestak validate-spec <path> [--json]"
+        echo "Usage: homestak spec validate <path> [--json]"
         exit 2
     fi
 
@@ -921,8 +924,14 @@ case "$CMD" in
     preflight)
         run_preflight "$@"
         ;;
-    validate-spec)
-        validate_spec "$@"
+    spec)
+        [[ $# -lt 1 ]] && { echo "Usage: homestak spec <validate> [args]"; exit 1; }
+        SUBCMD="$1"
+        shift
+        case "$SUBCMD" in
+            validate) spec_validate "$@" ;;
+            *) echo -e "${RED}Unknown spec subcommand: $SUBCMD${NC}"; exit 1 ;;
+        esac
         ;;
     # Playbook shortcuts
     pve-setup|pve-install|user|network)

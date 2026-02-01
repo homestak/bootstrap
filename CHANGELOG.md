@@ -3,8 +3,8 @@
 ## Unreleased
 
 ### Added
-- Add `validate-spec` command for VM specification validation (#152)
-  - Validates specs against v2/defs/spec.schema.json schema
+- Add `spec` subcommand group for VM specification management (#152)
+  - `spec validate` - Validates specs against v2/defs/spec.schema.json schema
   - Supports `--json` flag for machine-readable output
   - Exit codes: 0=valid, 1=invalid, 2=error
   - Resolves relative paths from HOMESTAK_ETC

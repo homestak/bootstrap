@@ -84,7 +84,7 @@ homestak images <subcommand>       # Manage packer images
 homestak playbook <name> [args]    # Run ansible playbook
 homestak scenario <name> [args]    # Run iac-driver scenario
 homestak secrets <action>          # Manage secrets (decrypt, encrypt, check, validate)
-homestak validate-spec <path>      # Validate a VM specification against schema
+homestak spec <subcommand>         # Manage VM specifications
 homestak install <module>          # Install optional module (packer)
 homestak update [options]          # Update all repositories
 homestak preflight [host]          # Run preflight checks (local by default)
@@ -142,16 +142,21 @@ homestak images download all --publish   # Download and install all images
 homestak images list --version v0.22     # List images in specific release
 ```
 
-### Spec Validation
+### Spec Management
 
-The `validate-spec` command validates VM specifications against the v2 schema:
+The `spec` command manages VM specifications:
 
 ```bash
-homestak validate-spec v2/specs/pve.yaml       # Validate a spec (relative to site-config)
-homestak validate-spec v2/specs/pve.yaml --json  # JSON output for scripting
+homestak spec validate v2/specs/pve.yaml         # Validate against schema
+homestak spec validate v2/specs/pve.yaml --json  # JSON output for scripting
 ```
 
-Exit codes:
+**Subcommands:**
+| Subcommand | Description |
+|------------|-------------|
+| `validate` | Validate spec against v2 schema |
+
+**Exit codes (validate):**
 - `0` - Valid spec
 - `1` - Invalid spec (schema violation)
 - `2` - Error (file not found, schema missing, etc.)

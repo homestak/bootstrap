@@ -193,23 +193,35 @@ load_functions() {
 }
 
 #
-# validate-spec tests
+# spec subcommand tests
 #
 
-@test "validate-spec requires path" {
-    run "$HOMESTAK_SH" validate-spec
-    [ "$status" -eq 2 ]
-    [[ "$output" =~ "Usage: homestak validate-spec" ]]
+@test "spec requires subcommand" {
+    run "$HOMESTAK_SH" spec
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Usage: homestak spec" ]]
 }
 
-@test "validate-spec unknown option fails" {
-    run "$HOMESTAK_SH" validate-spec --badoption
+@test "spec unknown subcommand fails" {
+    run "$HOMESTAK_SH" spec foobar
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Unknown spec subcommand" ]]
+}
+
+@test "spec validate requires path" {
+    run "$HOMESTAK_SH" spec validate
+    [ "$status" -eq 2 ]
+    [[ "$output" =~ "Usage: homestak spec validate" ]]
+}
+
+@test "spec validate unknown option fails" {
+    run "$HOMESTAK_SH" spec validate --badoption
     [ "$status" -eq 2 ]
     [[ "$output" =~ "Unknown option" ]]
 }
 
-@test "validate-spec reports missing file" {
-    run "$HOMESTAK_SH" validate-spec /nonexistent/file.yaml
+@test "spec validate reports missing file" {
+    run "$HOMESTAK_SH" spec validate /nonexistent/file.yaml
     [ "$status" -eq 2 ]
     [[ "$output" =~ "not found" ]]
 }
