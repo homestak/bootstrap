@@ -17,9 +17,9 @@ get_version() {
 
 VERBOSE=false
 
-# FHS-compliant paths
-HOMESTAK_LIB="/usr/local/lib/homestak"
-HOMESTAK_ETC="/usr/local/etc/homestak"
+# FHS-compliant paths (overridable via environment for development)
+HOMESTAK_LIB="${HOMESTAK_LIB:-/usr/local/lib/homestak}"
+HOMESTAK_ETC="${HOMESTAK_ETC:-/usr/local/etc/homestak}"
 ANSIBLE_DIR="$HOMESTAK_LIB/ansible"
 IAC_DRIVER_DIR="$HOMESTAK_LIB/iac-driver"
 
@@ -39,6 +39,7 @@ usage() {
     echo "  playbook <name> [args]    Run an ansible playbook"
     echo "  scenario <name> [args]    Run an iac-driver scenario"
     echo "  secrets <action>          Manage secrets (decrypt, encrypt, check, validate)"
+    echo "  validate-spec <path>      Validate a VM specification against schema"
     echo "  install <module>          Install optional module (packer)"
     echo "  update [options]          Update all repositories"
     echo "  preflight [host]          Run preflight checks (local by default)"
@@ -78,6 +79,8 @@ usage() {
     echo "  homestak update --version v0.24"
     echo "  homestak preflight"
     echo "  homestak preflight mother"
+    echo "  homestak validate-spec v2/specs/pve.yaml"
+    echo "  homestak validate-spec v2/specs/pve.yaml --json"
     echo ""
     exit 1
 }
@@ -193,6 +196,131 @@ manage_secrets() {
             exit 1
             ;;
     esac
+}
+
+validate_spec() {
+    local spec_path=""
+    local json_output=false
+
+    while [[ $# -gt 0 ]]; do
+        case "$1" in
+            --json) json_output=true; shift ;;
+            -*) echo -e "${RED}Unknown option: $1${NC}"; exit 2 ;;
+            *)
+                if [[ -z "$spec_path" ]]; then
+                    spec_path="$1"
+                else
+                    echo -e "${RED}Unexpected argument: $1${NC}"
+                    exit 2
+                fi
+                shift
+                ;;
+        esac
+    done
+
+    if [[ -z "$spec_path" ]]; then
+        echo "Usage: homestak validate-spec <path> [--json]"
+        exit 2
+    fi
+
+    # Resolve spec path (relative to site-config if not absolute)
+    if [[ ! "$spec_path" = /* ]]; then
+        if [[ -f "$HOMESTAK_ETC/$spec_path" ]]; then
+            spec_path="$HOMESTAK_ETC/$spec_path"
+        elif [[ ! -f "$spec_path" ]]; then
+            if [[ "$json_output" == "true" ]]; then
+                echo '{"valid": false, "error": "Spec file not found: '"$spec_path"'"}'
+            else
+                echo -e "${RED}Spec file not found: $spec_path${NC}"
+            fi
+            exit 2
+        fi
+    fi
+
+    if [[ ! -f "$spec_path" ]]; then
+        if [[ "$json_output" == "true" ]]; then
+            echo '{"valid": false, "error": "Spec file not found: '"$spec_path"'"}'
+        else
+            echo -e "${RED}Spec file not found: $spec_path${NC}"
+        fi
+        exit 2
+    fi
+
+    local schema_path="$HOMESTAK_ETC/v2/defs/spec.schema.json"
+    if [[ ! -f "$schema_path" ]]; then
+        if [[ "$json_output" == "true" ]]; then
+            echo '{"valid": false, "error": "Schema not found: '"$schema_path"'"}'
+        else
+            echo -e "${RED}Schema not found: $schema_path${NC}"
+        fi
+        exit 2
+    fi
+
+    # Python validation script (|| true prevents set -e from triggering on non-zero exit)
+    local result exit_code
+    result=$(python3 -c "
+import sys
+import json
+import yaml
+
+try:
+    from jsonschema import validate, ValidationError, SchemaError
+except ImportError:
+    print(json.dumps({'valid': False, 'error': 'jsonschema not installed. Run: pip install jsonschema'}))
+    sys.exit(2)
+
+spec_path = sys.argv[1]
+schema_path = sys.argv[2]
+json_output = sys.argv[3] == 'true'
+
+try:
+    with open(schema_path) as f:
+        schema = json.load(f)
+except Exception as e:
+    print(json.dumps({'valid': False, 'error': f'Failed to load schema: {e}'}))
+    sys.exit(2)
+
+try:
+    with open(spec_path) as f:
+        spec = yaml.safe_load(f)
+except Exception as e:
+    print(json.dumps({'valid': False, 'error': f'Failed to load spec: {e}'}))
+    sys.exit(2)
+
+try:
+    validate(instance=spec, schema=schema)
+    print(json.dumps({'valid': True, 'path': spec_path}))
+    sys.exit(0)
+except ValidationError as e:
+    error_path = '.'.join(str(p) for p in e.absolute_path) if e.absolute_path else '(root)'
+    print(json.dumps({'valid': False, 'path': spec_path, 'error': e.message, 'location': error_path}))
+    sys.exit(1)
+except SchemaError as e:
+    print(json.dumps({'valid': False, 'error': f'Invalid schema: {e.message}'}))
+    sys.exit(2)
+" "$spec_path" "$schema_path" "$json_output" 2>&1) && exit_code=0 || exit_code=$?
+
+    if [[ "$json_output" == "true" ]]; then
+        echo "$result"
+    else
+        local valid
+        valid=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('valid', False))" 2>/dev/null || echo "false")
+        if [[ "$valid" == "True" ]]; then
+            echo -e "${GREEN}✓${NC} Valid: $spec_path"
+        else
+            local error
+            error=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('error', 'Unknown error'))" 2>/dev/null || echo "Unknown error")
+            local location
+            location=$(echo "$result" | python3 -c "import sys,json; print(json.load(sys.stdin).get('location', ''))" 2>/dev/null || echo "")
+            echo -e "${RED}✗${NC} Invalid: $spec_path"
+            if [[ -n "$location" && "$location" != "(root)" ]]; then
+                echo "  Location: $location"
+            fi
+            echo "  Error: $error"
+        fi
+    fi
+
+    exit $exit_code
 }
 
 update_repos() {
@@ -792,6 +920,9 @@ case "$CMD" in
         ;;
     preflight)
         run_preflight "$@"
+        ;;
+    validate-spec)
+        validate_spec "$@"
         ;;
     # Playbook shortcuts
     pve-setup|pve-install|user|network)

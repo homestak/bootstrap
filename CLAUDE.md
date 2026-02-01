@@ -70,10 +70,6 @@ After running install.sh:
         └── packer/         # (optional)
 ```
 
-### Legacy Path Support
-
-The CLI automatically falls back to `/opt/homestak/` if FHS paths don't exist, supporting existing installations during transition.
-
 ## homestak CLI
 
 ```bash
@@ -88,6 +84,7 @@ homestak images <subcommand>       # Manage packer images
 homestak playbook <name> [args]    # Run ansible playbook
 homestak scenario <name> [args]    # Run iac-driver scenario
 homestak secrets <action>          # Manage secrets (decrypt, encrypt, check, validate)
+homestak validate-spec <path>      # Validate a VM specification against schema
 homestak install <module>          # Install optional module (packer)
 homestak update [options]          # Update all repositories
 homestak preflight [host]          # Run preflight checks (local by default)
@@ -145,6 +142,22 @@ homestak images download all --publish   # Download and install all images
 homestak images list --version v0.22     # List images in specific release
 ```
 
+### Spec Validation
+
+The `validate-spec` command validates VM specifications against the v2 schema:
+
+```bash
+homestak validate-spec v2/specs/pve.yaml       # Validate a spec (relative to site-config)
+homestak validate-spec v2/specs/pve.yaml --json  # JSON output for scripting
+```
+
+Exit codes:
+- `0` - Valid spec
+- `1` - Invalid spec (schema violation)
+- `2` - Error (file not found, schema missing, etc.)
+
+Requires `python3-jsonschema` package.
+
 ## Environment Variables
 
 | Variable | Default | Description |
@@ -152,6 +165,8 @@ homestak images list --version v0.22     # List images in specific release
 | `HOMESTAK_BRANCH` | master | Git branch to use for all repos |
 | `HOMESTAK_USER` | (none) | Create this user with sudo privileges |
 | `HOMESTAK_APPLY` | (none) | Task to run after bootstrap (pve-setup, user, network) |
+| `HOMESTAK_LIB` | /usr/local/lib/homestak | Code repos directory (for development) |
+| `HOMESTAK_ETC` | /usr/local/etc/homestak | Site-config directory (for development) |
 
 ## Architecture
 

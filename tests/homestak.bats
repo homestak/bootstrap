@@ -191,3 +191,25 @@ load_functions() {
     [ "$status" -eq 1 ]
     [[ "$output" =~ "Usage: homestak scenario" ]]
 }
+
+#
+# validate-spec tests
+#
+
+@test "validate-spec requires path" {
+    run "$HOMESTAK_SH" validate-spec
+    [ "$status" -eq 2 ]
+    [[ "$output" =~ "Usage: homestak validate-spec" ]]
+}
+
+@test "validate-spec unknown option fails" {
+    run "$HOMESTAK_SH" validate-spec --badoption
+    [ "$status" -eq 2 ]
+    [[ "$output" =~ "Unknown option" ]]
+}
+
+@test "validate-spec reports missing file" {
+    run "$HOMESTAK_SH" validate-spec /nonexistent/file.yaml
+    [ "$status" -eq 2 ]
+    [[ "$output" =~ "not found" ]]
+}
