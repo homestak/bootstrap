@@ -12,6 +12,10 @@
   - Schema path derived from spec file location (works in dev workspace)
 - Make HOMESTAK_LIB and HOMESTAK_ETC environment-overridable for development
 
+## v0.42 - 2026-01-31
+
+- Release alignment with homestak v0.42
+
 ## v0.41 - 2026-01-31
 
 ### Added
