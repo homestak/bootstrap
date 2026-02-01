@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.43 - 2026-02-01
+
 ### Added
 - Add `spec` subcommand group for VM specification management (#152)
   - `spec validate` - Validates specs against v2/defs/spec.schema.json schema
