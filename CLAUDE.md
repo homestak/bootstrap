@@ -38,6 +38,11 @@ homestak scenario pve-setup --local
 bootstrap/
 ├── install.sh      # curl|bash entry point
 ├── homestak.sh     # Standalone CLI script
+├── lib/            # Python modules
+│   ├── serve.py        # HTTP server for spec discovery
+│   ├── spec_resolver.py # Spec loading and FK resolution
+│   └── spec_client.py  # HTTP client for spec fetching
+├── tests/          # Test scripts
 ├── CLAUDE.md       # This file
 └── README.md       # User-facing documentation
 ```
@@ -85,6 +90,7 @@ homestak playbook <name> [args]    # Run ansible playbook
 homestak scenario <name> [args]    # Run iac-driver scenario
 homestak secrets <action>          # Manage secrets (decrypt, encrypt, check, validate)
 homestak spec <subcommand>         # Manage VM specifications
+homestak serve [options]           # Start spec discovery server
 homestak install <module>          # Install optional module (packer)
 homestak update [options]          # Update all repositories
 homestak preflight [host]          # Run preflight checks (local by default)
@@ -149,19 +155,60 @@ The `spec` command manages VM specifications:
 ```bash
 homestak spec validate v2/specs/pve.yaml         # Validate against schema
 homestak spec validate v2/specs/pve.yaml --json  # JSON output for scripting
+
+# Fetch spec from server (manual testing)
+homestak spec get --server https://father:44443 --identity dev1
+
+# Fetch spec using environment variables (automated path)
+HOMESTAK_DISCOVERY=https://father:44443 HOMESTAK_IDENTITY=dev1 homestak spec get
 ```
 
 **Subcommands:**
 | Subcommand | Description |
 |------------|-------------|
 | `validate` | Validate spec against v2 schema |
+| `get` | Fetch spec from server and save to state directory |
 
 **Exit codes (validate):**
 - `0` - Valid spec
 - `1` - Invalid spec (schema violation)
 - `2` - Error (file not found, schema missing, etc.)
 
-Requires `python3-jsonschema` package.
+**Exit codes (get):**
+- `0` - Success
+- `1` - Client error (missing args, invalid config)
+- `2` - Server error (network, HTTP error)
+- `3` - Validation error (schema invalid)
+
+Requires `python3-jsonschema` package for validate, `python3-yaml` for get.
+
+### Spec Server
+
+The `serve` command starts an HTTP server for spec discovery:
+
+```bash
+homestak serve                     # Start on default port 44443
+homestak serve --port 8443         # Use custom port
+homestak serve --bind 127.0.0.1    # Bind to localhost only
+```
+
+**Features:**
+- Serves resolved specs from `site-config/v2/specs/`
+- Posture-based authentication (network, site_token, node_token)
+- SIGHUP handler clears cache without restart
+- Error codes E100-E501 per design spec
+
+**API Endpoints:**
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
+| GET | `/spec/{identity}` | Fetch resolved spec |
+| GET | `/specs` | List available specs |
+
+**State Directory:**
+Fetched specs are saved to `/usr/local/etc/homestak/state/`:
+- `spec.yaml` - Current spec
+- `spec.yaml.prev` - Previous spec (backup)
 
 ## Environment Variables
 
@@ -172,6 +219,9 @@ Requires `python3-jsonschema` package.
 | `HOMESTAK_APPLY` | (none) | Task to run after bootstrap (pve-setup, user, network) |
 | `HOMESTAK_LIB` | /usr/local/lib/homestak | Code repos directory (for development) |
 | `HOMESTAK_ETC` | /usr/local/etc/homestak | Site-config directory (for development) |
+| `HOMESTAK_DISCOVERY` | (none) | Spec server URL for `spec get` (e.g., `https://father:44443`) |
+| `HOMESTAK_IDENTITY` | (none) | Node identity for `spec get` |
+| `HOMESTAK_AUTH_TOKEN` | (none) | Bearer token for `spec get` (if posture requires) |
 
 ## Architecture
 

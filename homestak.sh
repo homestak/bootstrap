@@ -63,6 +63,7 @@ usage() {
     echo ""
     echo "Spec subcommands:"
     echo "  spec validate <path> [--json]"
+    echo "  spec get --server <url> --identity <id> [--token <token>] [--insecure]"
     echo ""
     echo "Serve options:"
     echo "  serve [--port 44443] [--bind 0.0.0.0] [--verbose]"
@@ -88,6 +89,7 @@ usage() {
     echo "  homestak preflight mother"
     echo "  homestak spec validate v2/specs/pve.yaml"
     echo "  homestak spec validate v2/specs/pve.yaml --json"
+    echo "  homestak spec get --server https://father:44443 --identity dev1"
     echo "  homestak serve --port 44443"
     echo ""
     exit 1
@@ -934,11 +936,16 @@ case "$CMD" in
         run_preflight "$@"
         ;;
     spec)
-        [[ $# -lt 1 ]] && { echo "Usage: homestak spec <validate> [args]"; exit 1; }
+        [[ $# -lt 1 ]] && { echo "Usage: homestak spec <validate|get> [args]"; exit 1; }
         SUBCMD="$1"
         shift
         case "$SUBCMD" in
             validate) spec_validate "$@" ;;
+            get)
+                # Run the spec_client module
+                SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+                PYTHONPATH="$SCRIPT_DIR" python3 -m lib.spec_client "$@"
+                ;;
             *) echo -e "${RED}Unknown spec subcommand: $SUBCMD${NC}"; exit 1 ;;
         esac
         ;;
