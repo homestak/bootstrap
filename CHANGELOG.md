@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+- Rename `HOMESTAK_DISCOVERY` → `HOMESTAK_SPEC_SERVER` environment variable (#154)
+  - Aligns with site.yaml `defaults.spec_server` naming convention
+  - Affects `homestak spec get` and `spec_client.py`
+
 ## v0.44 - 2026-02-02
 
 ### Theme: Specify Infrastructure
@@ -18,7 +23,7 @@ Completes the Specify phase infrastructure for the VM lifecycle architecture.
 - Add `homestak spec get` command for fetching specs from server (#153)
   - HTTP client to fetch resolved specs
   - CLI flags: `--server`, `--identity`, `--token`, `--insecure`
-  - Environment variable support: `HOMESTAK_DISCOVERY`, `HOMESTAK_IDENTITY`, `HOMESTAK_AUTH_TOKEN`
+  - Environment variable support: `HOMESTAK_SPEC_SERVER`, `HOMESTAK_IDENTITY`, `HOMESTAK_AUTH_TOKEN`
   - State persistence to `/usr/local/etc/homestak/state/spec.yaml`
   - Previous spec backed up to `spec.yaml.prev`
 
