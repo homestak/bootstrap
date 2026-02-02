@@ -2,10 +2,21 @@
 
 ## Unreleased
 
+### Added
+- Add Create → Specify flow documentation to CLAUDE.md (#154)
+  - Documents cloud-init env var injection
+  - Describes first-boot spec fetch behavior
+  - Includes auth model by posture
+
 ### Changed
 - Rename `HOMESTAK_DISCOVERY` → `HOMESTAK_SPEC_SERVER` environment variable (#154)
   - Aligns with site.yaml `defaults.spec_server` naming convention
   - Affects `homestak spec get` and `spec_client.py`
+
+### Fixed
+- Fix PYTHONPATH for `homestak serve` and `spec get` commands (#154)
+  - Use `$HOMESTAK_LIB/bootstrap` instead of `$SCRIPT_DIR`
+  - Fixes module resolution when CLI invoked via symlink
 
 ## v0.44 - 2026-02-02
 
