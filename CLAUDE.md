@@ -223,6 +223,73 @@ Fetched specs are saved to `/usr/local/etc/homestak/state/`:
 | `HOMESTAK_IDENTITY` | (none) | Node identity for `spec get` |
 | `HOMESTAK_AUTH_TOKEN` | (none) | Bearer token for `spec get` (if posture requires) |
 
+## Create → Specify Flow (v0.45+)
+
+The Create → Specify flow enables automatic spec discovery for newly provisioned VMs.
+
+### Overview
+
+```
+Controller (father)              VM (test)
+┌─────────────────┐              ┌─────────────────┐
+│ homestak serve  │◄─────────────│ homestak spec   │
+│ :44443          │   GET /spec  │ get             │
+│                 │   /test      │                 │
+└─────────────────┘              └─────────────────┘
+                                        │
+                                        ▼
+                                 /usr/local/etc/
+                                 homestak/state/
+                                 spec.yaml
+```
+
+### How It Works
+
+1. **Create Phase (tofu)**:
+   - VM provisioned with cloud-init
+   - Environment variables injected to `/etc/profile.d/homestak.sh`:
+     - `HOMESTAK_SPEC_SERVER` - Spec server URL
+     - `HOMESTAK_IDENTITY` - VM identity (hostname)
+     - `HOMESTAK_AUTH_TOKEN` - Auth token (if posture requires)
+
+2. **First Boot (cloud-init runcmd)**:
+   - Checks if `/usr/local/etc/homestak/state/spec.yaml` exists
+   - If not, runs `homestak spec get` to fetch spec
+   - Spec saved for Apply phase
+
+3. **Specify Phase (manual or automated)**:
+   - `homestak spec get` fetches resolved spec from server
+   - Server resolves FK references (posture, SSH keys)
+   - Spec validated against schema before saving
+
+### Configuration
+
+**Controller (site.yaml)**:
+```yaml
+defaults:
+  spec_server: "https://father:44443"
+```
+
+**Spec Server**:
+```bash
+# Start on controller
+homestak serve --port 44443
+```
+
+**Validation Scenario**:
+```bash
+# Test Create → Specify flow end-to-end
+./run.sh --scenario spec-vm-roundtrip --host father
+```
+
+### Auth Model by Posture
+
+| Posture | Auth Method | Token |
+|---------|-------------|-------|
+| dev/local | network | (none - trust network) |
+| stage | site_token | Shared secret |
+| prod | node_token | Per-VM unique token |
+
 ## Architecture
 
 ### Dependency Installation

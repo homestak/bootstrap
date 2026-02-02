@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+### Added
+- Add Create → Specify flow documentation to CLAUDE.md (#154)
+  - Documents cloud-init env var injection
+  - Describes first-boot spec fetch behavior
+  - Includes auth model by posture
+
 ### Changed
 - Rename `HOMESTAK_DISCOVERY` → `HOMESTAK_SPEC_SERVER` environment variable (#154)
   - Aligns with site.yaml `defaults.spec_server` naming convention
