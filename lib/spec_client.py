@@ -249,7 +249,7 @@ def get_config_from_env() -> dict:
     """
     config = {}
 
-    if server := os.environ.get("HOMESTAK_DISCOVERY"):
+    if server := os.environ.get("HOMESTAK_SPEC_SERVER"):
         config["server"] = server
 
     if identity := os.environ.get("HOMESTAK_IDENTITY"):
@@ -271,7 +271,7 @@ def main():
         "--server",
         "-s",
         help="Server URL (e.g., https://father:44443). "
-        "Env: HOMESTAK_DISCOVERY",
+        "Env: HOMESTAK_SPEC_SERVER",
     )
     parser.add_argument(
         "--identity",
@@ -322,7 +322,7 @@ def main():
 
     # Validate required args
     if not server:
-        logger.error("Error: --server or HOMESTAK_DISCOVERY required")
+        logger.error("Error: --server or HOMESTAK_SPEC_SERVER required")
         sys.exit(EXIT_CLIENT_ERROR)
 
     if not identity:
