@@ -1,0 +1,49 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+
+jobs:
+  lint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install shellcheck
+        run: sudo apt-get install -y shellcheck
+
+      - name: Shellcheck
+        run: shellcheck -S error install.sh homestak.sh
+        # -S error: Only fail on errors, not warnings/style (existing code has warnings)
+
+  pylint:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install pylint
+        run: pip install pylint
+
+      - name: Pylint
+        run: pylint lib/*.py --disable=C0114,C0115,C0116,R0801 || true
+        # Advisory mode: report issues but don't fail build
+        # Remove '|| true' to make blocking in future release
+
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install bats
+        run: sudo apt-get install -y bats
+
+      - name: Run tests
+        run: bats tests/
