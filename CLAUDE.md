@@ -160,7 +160,7 @@ homestak spec validate v2/specs/pve.yaml --json  # JSON output for scripting
 homestak spec get --server https://father:44443 --identity dev1
 
 # Fetch spec using environment variables (automated path)
-HOMESTAK_DISCOVERY=https://father:44443 HOMESTAK_IDENTITY=dev1 homestak spec get
+HOMESTAK_SPEC_SERVER=https://father:44443 HOMESTAK_IDENTITY=dev1 homestak spec get
 ```
 
 **Subcommands:**
@@ -219,7 +219,7 @@ Fetched specs are saved to `/usr/local/etc/homestak/state/`:
 | `HOMESTAK_APPLY` | (none) | Task to run after bootstrap (pve-setup, user, network) |
 | `HOMESTAK_LIB` | /usr/local/lib/homestak | Code repos directory (for development) |
 | `HOMESTAK_ETC` | /usr/local/etc/homestak | Site-config directory (for development) |
-| `HOMESTAK_DISCOVERY` | (none) | Spec server URL for `spec get` (e.g., `https://father:44443`) |
+| `HOMESTAK_SPEC_SERVER` | (none) | Spec server URL for `spec get` (e.g., `https://father:44443`) |
 | `HOMESTAK_IDENTITY` | (none) | Node identity for `spec get` |
 | `HOMESTAK_AUTH_TOKEN` | (none) | Bearer token for `spec get` (if posture requires) |
 
