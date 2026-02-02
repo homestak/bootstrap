@@ -13,6 +13,11 @@
   - Aligns with site.yaml `defaults.spec_server` naming convention
   - Affects `homestak spec get` and `spec_client.py`
 
+### Fixed
+- Fix PYTHONPATH for `homestak serve` and `spec get` commands (#154)
+  - Use `$HOMESTAK_LIB/bootstrap` instead of `$SCRIPT_DIR`
+  - Fixes module resolution when CLI invoked via symlink
+
 ## v0.44 - 2026-02-02
 
 ### Theme: Specify Infrastructure

@@ -943,16 +943,16 @@ case "$CMD" in
             validate) spec_validate "$@" ;;
             get)
                 # Run the spec_client module
-                SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-                PYTHONPATH="$SCRIPT_DIR" python3 -m lib.spec_client "$@"
+                # Use HOMESTAK_LIB/bootstrap (not SCRIPT_DIR) to handle symlink execution
+                PYTHONPATH="$HOMESTAK_LIB/bootstrap" python3 -m lib.spec_client "$@"
                 ;;
             *) echo -e "${RED}Unknown spec subcommand: $SUBCMD${NC}"; exit 1 ;;
         esac
         ;;
     serve)
         # Run the serve module
-        SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
-        PYTHONPATH="$SCRIPT_DIR" python3 -m lib.serve "$@"
+        # Use HOMESTAK_LIB/bootstrap (not SCRIPT_DIR) to handle symlink execution
+        PYTHONPATH="$HOMESTAK_LIB/bootstrap" python3 -m lib.serve "$@"
         ;;
     # Playbook shortcuts
     pve-setup|pve-install|user|network)
