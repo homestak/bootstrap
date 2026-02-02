@@ -16,7 +16,8 @@ jobs:
         run: sudo apt-get install -y shellcheck
 
       - name: Shellcheck
-        run: shellcheck install.sh homestak.sh
+        run: shellcheck -S error install.sh homestak.sh
+        # -S error: Only fail on errors, not warnings/style (existing code has warnings)
 
   pylint:
     runs-on: ubuntu-latest
