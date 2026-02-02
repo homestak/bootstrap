@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## v0.45 - 2026-02-02
+
+### Theme: Create Integration
+
+Integrates Create phase with Specify mechanism for automatic spec discovery.
+
 ### Added
 - Add Create → Specify flow documentation to CLAUDE.md (#154)
   - Documents cloud-init env var injection
