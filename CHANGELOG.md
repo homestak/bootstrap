@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## v0.44 - 2026-02-02
+
+### Theme: Specify Infrastructure
+
+Completes the Specify phase infrastructure for the VM lifecycle architecture.
+
 ### Added
 - Add CI workflow with shellcheck, pylint, and bats tests (#163)
 - Add `homestak serve` command for spec discovery server (#153)
