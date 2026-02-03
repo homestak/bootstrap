@@ -6,7 +6,7 @@
 
 ### Theme: Create Integration
 
-Integrates Create phase with Specify mechanism for automatic spec discovery.
+Integrates create phase with config mechanism for automatic spec discovery.
 
 ### Added
 - Add Create → Specify flow documentation to CLAUDE.md (#154)

@@ -223,14 +223,14 @@ Fetched specs are saved to `/usr/local/etc/homestak/state/`:
 | `HOMESTAK_IDENTITY` | (none) | Node identity for `spec get` |
 | `HOMESTAK_AUTH_TOKEN` | (none) | Bearer token for `spec get` (if posture requires) |
 
-## Create → Specify Flow (v0.45+)
+## Create → Config Flow (v0.45+)
 
-The Create → Specify flow enables automatic spec discovery for newly provisioned VMs.
+The create → config flow enables automatic spec discovery for newly provisioned VMs.
 
 ### Overview
 
 ```
-Controller (father)              VM (test)
+Driver (father)                  VM (test)
 ┌─────────────────┐              ┌─────────────────┐
 │ homestak serve  │◄─────────────│ homestak spec   │
 │ :44443          │   GET /spec  │ get             │
@@ -245,7 +245,7 @@ Controller (father)              VM (test)
 
 ### How It Works
 
-1. **Create Phase (tofu)**:
+1. **create phase (tofu)**:
    - VM provisioned with cloud-init
    - Environment variables injected to `/etc/profile.d/homestak.sh`:
      - `HOMESTAK_SPEC_SERVER` - Spec server URL
@@ -255,16 +255,16 @@ Controller (father)              VM (test)
 2. **First Boot (cloud-init runcmd)**:
    - Checks if `/usr/local/etc/homestak/state/spec.yaml` exists
    - If not, runs `homestak spec get` to fetch spec
-   - Spec saved for Apply phase
+   - Spec saved for config phase
 
-3. **Specify Phase (manual or automated)**:
+3. **Config phase (manual or automated)**:
    - `homestak spec get` fetches resolved spec from server
    - Server resolves FK references (posture, SSH keys)
    - Spec validated against schema before saving
 
 ### Configuration
 
-**Controller (site.yaml)**:
+**Driver (site.yaml)**:
 ```yaml
 defaults:
   spec_server: "https://father:44443"
@@ -272,13 +272,13 @@ defaults:
 
 **Spec Server**:
 ```bash
-# Start on controller
+# Start on driver
 homestak serve --port 44443
 ```
 
 **Validation Scenario**:
 ```bash
-# Test Create → Specify flow end-to-end
+# Test create → config flow end-to-end
 ./run.sh --scenario spec-vm-roundtrip --host father
 ```
 
