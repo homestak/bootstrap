@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-HTTP client for fetching specs from homestak serve.
+HTTP client for fetching specs from spec server.
 
 Fetches specs from the server, validates them, and persists to local state.
 """
@@ -66,7 +66,7 @@ def discover_state_path() -> Path:
 
 
 class SpecClient:
-    """HTTP client for fetching specs from homestak serve."""
+    """HTTP client for fetching specs from spec server."""
 
     def __init__(
         self,
@@ -264,7 +264,7 @@ def get_config_from_env() -> dict:
 def main():
     """CLI entry point."""
     parser = argparse.ArgumentParser(
-        description="Fetch spec from homestak serve",
+        description="Fetch spec from spec server",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
     parser.add_argument(

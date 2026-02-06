@@ -39,8 +39,6 @@ bootstrap/
 ├── install.sh      # curl|bash entry point
 ├── homestak.sh     # Standalone CLI script
 ├── lib/            # Python modules
-│   ├── serve.py        # HTTP server for spec discovery
-│   ├── spec_resolver.py # Spec loading and FK resolution
 │   └── spec_client.py  # HTTP client for spec fetching
 ├── tests/          # Test scripts
 ├── CLAUDE.md       # This file
@@ -90,7 +88,6 @@ homestak playbook <name> [args]    # Run ansible playbook
 homestak scenario <name> [args]    # Run iac-driver scenario
 homestak secrets <action>          # Manage secrets (decrypt, encrypt, check, validate)
 homestak spec <subcommand>         # Manage VM specifications
-homestak serve [options]           # Start spec discovery server
 homestak install <module>          # Install optional module (packer)
 homestak update [options]          # Update all repositories
 homestak preflight [host]          # Run preflight checks (local by default)
@@ -150,12 +147,9 @@ homestak images list --version v0.22     # List images in specific release
 
 ### Spec Management
 
-The `spec` command manages VM specifications:
+The `spec` command fetches VM specifications from the controller:
 
 ```bash
-homestak spec validate v2/specs/pve.yaml         # Validate against schema
-homestak spec validate v2/specs/pve.yaml --json  # JSON output for scripting
-
 # Fetch spec from server (manual testing)
 homestak spec get --server https://father:44443 --identity dev1
 
@@ -163,52 +157,15 @@ homestak spec get --server https://father:44443 --identity dev1
 HOMESTAK_SPEC_SERVER=https://father:44443 HOMESTAK_IDENTITY=dev1 homestak spec get
 ```
 
-**Subcommands:**
-| Subcommand | Description |
-|------------|-------------|
-| `validate` | Validate spec against v2 schema |
-| `get` | Fetch spec from server and save to state directory |
-
-**Exit codes (validate):**
-- `0` - Valid spec
-- `1` - Invalid spec (schema violation)
-- `2` - Error (file not found, schema missing, etc.)
-
 **Exit codes (get):**
 - `0` - Success
 - `1` - Client error (missing args, invalid config)
 - `2` - Server error (network, HTTP error)
 - `3` - Validation error (schema invalid)
 
-Requires `python3-jsonschema` package for validate, `python3-yaml` for get.
+Requires `python3-yaml` for get.
 
-### Spec Server
-
-The `serve` command starts an HTTP server for spec discovery:
-
-```bash
-homestak serve                     # Start on default port 44443
-homestak serve --port 8443         # Use custom port
-homestak serve --bind 127.0.0.1    # Bind to localhost only
-```
-
-**Features:**
-- Serves resolved specs from `site-config/v2/specs/`
-- Posture-based authentication (network, site_token, node_token)
-- SIGHUP handler clears cache without restart
-- Error codes E100-E501 per design spec
-
-**API Endpoints:**
-| Method | Endpoint | Description |
-|--------|----------|-------------|
-| GET | `/health` | Health check |
-| GET | `/spec/{identity}` | Fetch resolved spec |
-| GET | `/specs` | List available specs |
-
-**State Directory:**
-Fetched specs are saved to `/usr/local/etc/homestak/state/`:
-- `spec.yaml` - Current spec
-- `spec.yaml.prev` - Previous spec (backup)
+**Schema validation** has moved to site-config: `cd /usr/local/etc/homestak && make validate`
 
 ## Environment Variables
 
@@ -232,9 +189,9 @@ The create → config flow enables automatic spec discovery for newly provisione
 ```
 Driver (father)                  VM (test)
 ┌─────────────────┐              ┌─────────────────┐
-│ homestak serve  │◄─────────────│ homestak spec   │
-│ :44443          │   GET /spec  │ get             │
-│                 │   /test      │                 │
+│ ./run.sh serve  │◄─────────────│ homestak spec   │
+│ (controller)    │   GET /spec  │ get             │
+│ :44443          │   /test      │                 │
 └─────────────────┘              └─────────────────┘
                                         │
                                         ▼
@@ -270,16 +227,16 @@ defaults:
   spec_server: "https://father:44443"
 ```
 
-**Spec Server**:
+**Controller**:
 ```bash
-# Start on driver
-homestak serve --port 44443
+# Start on driver (iac-driver)
+cd /usr/local/lib/homestak/iac-driver && ./run.sh serve
 ```
 
 **Validation Scenario**:
 ```bash
 # Test create → config flow end-to-end
-./run.sh --scenario spec-vm-roundtrip --host father
+cd /usr/local/lib/homestak/iac-driver && ./run.sh --scenario spec-vm-push-roundtrip --host father
 ```
 
 ### Auth Model by Posture
