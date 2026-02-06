@@ -10,13 +10,15 @@
 #   --source URL       Installation source (github, http://..., file://...)
 #   --ref REF          Git ref to checkout (branch, tag, or _working)
 #   --skip-apt-wait    Skip waiting for apt processes (use when apt is idle)
+#   --insecure         Accept self-signed TLS certificates
 #   --help             Show help message
 #   --version          Show version
 #
 # Environment Variables:
 #   HOMESTAK_SOURCE    Installation source (overridden by --source)
 #   HOMESTAK_REF       Git ref (overridden by --ref)
-#   HOMESTAK_TOKEN     Auth token for HTTP sources (required)
+#   HOMESTAK_TOKEN     Auth token for HTTP/HTTPS sources (optional)
+#   HOMESTAK_INSECURE  Accept self-signed TLS certs (set to 1)
 #   HOMESTAK_USER      Create a sudo user during bootstrap
 #   HOMESTAK_APPLY     Run a task after bootstrap (e.g., pve-setup)
 #
@@ -51,21 +53,23 @@ Usage:
 Options:
   --source URL       Installation source (default: github)
                      - github or https://github.com/... (GitHub)
-                     - http://host:port (HTTP server - requires --ref and HOMESTAK_TOKEN)
+                     - http[s]://host:port (HTTP/HTTPS server)
                      - file:///path (local filesystem)
-  --ref REF          Git ref to checkout (default: master for github/file)
+  --ref REF          Git ref to checkout (default: master)
                      - master, main (branches)
                      - v0.37 (tags)
                      - _working (working tree state from serve-repos.sh)
   --skip-apt-wait    Skip waiting for apt processes to complete
                      Use when apt is known to be idle (e.g., dedicated VMs)
+  --insecure         Accept self-signed TLS certificates (HTTPS sources)
   --help, -h         Show this help message
   --version          Show version
 
 Environment Variables:
   HOMESTAK_SOURCE    Installation source (overridden by --source)
   HOMESTAK_REF       Git ref (overridden by --ref)
-  HOMESTAK_TOKEN     Auth token for HTTP sources (required for http://)
+  HOMESTAK_TOKEN     Auth token for HTTP/HTTPS sources (optional)
+  HOMESTAK_INSECURE  Accept self-signed TLS certs (overridden by --insecure)
   HOMESTAK_USER      Create a sudo user during bootstrap
   HOMESTAK_APPLY     Run a task after bootstrap (e.g., pve-setup)
   HOMESTAK_DEST      Custom installation directory (for testing)
@@ -76,9 +80,9 @@ Installation Paths (FHS-compliant):
   /usr/local/lib/homestak/     code repos
 
 Source Types:
-  github   Default. Clones from GitHub, includes site-config.
-  http://  Dev workflow. Requires --ref and HOMESTAK_TOKEN. Skips site-config.
-  file://  Air-gapped. Clones from local path.
+  github      Default. Clones from GitHub, includes site-config.
+  http[s]://  Controller/server. Token optional, --insecure for self-signed.
+  file://     Air-gapped. Clones from local path.
 
 Examples:
   # Basic bootstrap from GitHub
@@ -87,11 +91,9 @@ Examples:
   # Pin to specific version
   curl -fsSL .../install.sh | HOMESTAK_REF=v0.37 bash
 
-  # Bootstrap from HTTP server (dev workflow)
-  HOMESTAK_SOURCE=http://192.0.2.1:54321 \
-  HOMESTAK_TOKEN=a7Bx9kLmN2pQ4rSt \
-  HOMESTAK_REF=_working \
-  ./install.sh
+  # Bootstrap from controller (pull mode first boot)
+  curl -fsSk https://father:44443/bootstrap.git/install.sh | \
+  HOMESTAK_SOURCE=https://father:44443 HOMESTAK_INSECURE=1 bash
 
   # Air-gapped installation
   ./install.sh --source file:///mnt/usb/homestak --ref v0.37
@@ -106,6 +108,7 @@ EOF
 
 # Parse arguments
 SKIP_APT_WAIT=false
+INSECURE="${HOMESTAK_INSECURE:-}"
 
 parse_args() {
     while [[ $# -gt 0 ]]; do
@@ -120,6 +123,10 @@ parse_args() {
                 ;;
             --skip-apt-wait)
                 SKIP_APT_WAIT=true
+                shift
+                ;;
+            --insecure)
+                INSECURE=1
                 shift
                 ;;
             --version)
@@ -170,21 +177,11 @@ detect_source() {
             REF="${HOMESTAK_REF:-master}"
             SKIP_SITE_CONFIG=false
             ;;
-        http://*)
+        http://*|https://*)
             SOURCE_TYPE="http"
             BASE_URL="$source"
-            REF="${HOMESTAK_REF:-}"
-            SKIP_SITE_CONFIG=false  # Clone site-config (secrets copied separately)
-
-            # Validate HTTP source requirements
-            if [[ -z "$REF" ]]; then
-                log_error "HTTP source requires --ref (e.g., master, v0.37, _working)"
-                exit 1
-            fi
-            if [[ -z "${HOMESTAK_TOKEN:-}" ]]; then
-                log_error "HTTP source requires HOMESTAK_TOKEN"
-                exit 1
-            fi
+            REF="${HOMESTAK_REF:-master}"
+            SKIP_SITE_CONFIG=false
             ;;
         file://*)
             SOURCE_TYPE="file"
@@ -194,7 +191,7 @@ detect_source() {
             ;;
         *)
             log_error "Unknown source type: $source"
-            echo "Expected: github, http://..., or file://..."
+            echo "Expected: github, http[s]://..., or file://..."
             exit 1
             ;;
     esac
@@ -316,8 +313,12 @@ clone_or_update() {
             ;;
         http)
             repo_url="${BASE_URL}/${repo_name}.git"
-            # Add auth header for HTTP sources
-            git_opts+=(-c "http.extraHeader=Authorization: Bearer ${HOMESTAK_TOKEN}")
+            if [[ -n "${HOMESTAK_TOKEN:-}" ]]; then
+                git_opts+=(-c "http.extraHeader=Authorization: Bearer ${HOMESTAK_TOKEN}")
+            fi
+            if [[ "$INSECURE" == "1" ]]; then
+                git_opts+=(-c "http.sslVerify=false")
+            fi
             ;;
         file)
             repo_url="${BASE_URL}/${repo_name}"
