@@ -210,17 +210,17 @@ Driver (father)                  VM (test)
      - `HOMESTAK_AUTH_TOKEN` - Auth token (if posture requires)
 
 2. **First Boot (cloud-init runcmd)**:
-   - Checks if `/usr/local/etc/homestak/state/spec.yaml` exists
-   - If not, runs `homestak spec get` to fetch spec
-   - Spec saved for config phase
+   - Checks if `config-complete.json` marker exists
+   - If not, runs `./run.sh config --fetch --insecure` (iac-driver)
+   - iac-driver fetches spec from server, applies config, writes marker
 
 3. **Config phase (v0.48+)**:
-   - `./run.sh config` (iac-driver verb) applies the fetched spec locally
+   - `./run.sh config --fetch` (iac-driver verb) fetches spec + applies it locally
    - Maps spec sections to ansible role variables via `spec_to_ansible_vars()`
    - Runs `config-apply.yml` playbook (base, users, security roles)
    - Writes completion marker to `state/config-complete.json`
    - **Push mode** (default): driver SSHes into VM and runs config
-   - **Pull mode**: cloud-init chains `homestak spec get` + `./run.sh config` on first boot
+   - **Pull mode**: cloud-init runs `./run.sh config --fetch --insecure` on first boot
    - See `iac-driver/CLAUDE.md` for full execution mode documentation
 
 ### Configuration
