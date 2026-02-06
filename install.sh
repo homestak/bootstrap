@@ -165,7 +165,7 @@ CODE_REPOS=(bootstrap ansible iac-driver tofu)
 SOURCE_TYPE=""
 BASE_URL=""
 REF=""
-SKIP_SITE_CONFIG=false
+SKIP_SITE_CONFIG="${SKIP_SITE_CONFIG:-false}"
 
 detect_source() {
     local source="${HOMESTAK_SOURCE:-github}"
@@ -175,19 +175,16 @@ detect_source() {
             SOURCE_TYPE="github"
             BASE_URL="$GITHUB_ORG"
             REF="${HOMESTAK_REF:-master}"
-            SKIP_SITE_CONFIG=false
             ;;
         http://*|https://*)
             SOURCE_TYPE="http"
             BASE_URL="$source"
             REF="${HOMESTAK_REF:-master}"
-            SKIP_SITE_CONFIG=false
             ;;
         file://*)
             SOURCE_TYPE="file"
             BASE_URL="${source#file://}"
             REF="${HOMESTAK_REF:-master}"
-            SKIP_SITE_CONFIG=false
             ;;
         *)
             log_error "Unknown source type: $source"
@@ -343,12 +340,15 @@ clone_or_update() {
 
 # Clone code repos to /usr/local/lib/homestak/
 for repo in "${CODE_REPOS[@]}"; do
-    clone_or_update "$repo" "$HOMESTAK_LIB/$repo"
+    if ! clone_or_update "$repo" "$HOMESTAK_LIB/$repo"; then
+        log_error "Failed to clone $repo - aborting"
+        exit 1
+    fi
 done
 
 # Clone site-config to /usr/local/etc/homestak/ (skip for HTTP sources)
-if [[ "$SKIP_SITE_CONFIG" == true ]]; then
-    log_info "  Skipping site-config (will be configured separately for HTTP source)"
+if [[ "$SKIP_SITE_CONFIG" == "true" ]] || [[ "$SKIP_SITE_CONFIG" == "1" ]]; then
+    log_info "  Skipping site-config (SKIP_SITE_CONFIG=${SKIP_SITE_CONFIG})"
 else
     clone_or_update "site-config" "$HOMESTAK_ETC"
 fi
@@ -356,7 +356,7 @@ fi
 #
 # Step 3: Setup site-config
 #
-if [[ "$SKIP_SITE_CONFIG" != true ]]; then
+if [[ "$SKIP_SITE_CONFIG" != "true" ]] && [[ "$SKIP_SITE_CONFIG" != "1" ]]; then
     log_info "Setting up site-config..."
     if [[ -f "$HOMESTAK_ETC/Makefile" ]]; then
         make -C "$HOMESTAK_ETC" setup 2>&1 | sed 's/^/    /' || true
@@ -413,7 +413,7 @@ echo ""
 echo "Installation:"
 echo "  Source:      $SOURCE_TYPE ($REF)"
 echo "  Code repos:  $HOMESTAK_LIB"
-if [[ "$SKIP_SITE_CONFIG" != true ]]; then
+if [[ "$SKIP_SITE_CONFIG" != "true" ]] && [[ "$SKIP_SITE_CONFIG" != "1" ]]; then
     echo "  Config:      $HOMESTAK_ETC"
 fi
 echo "  CLI:         $HOMESTAK_BIN/homestak"
@@ -422,7 +422,7 @@ echo "Modules:"
 for repo in "${CODE_REPOS[@]}"; do
     echo "  - $repo"
 done
-if [[ "$SKIP_SITE_CONFIG" != true ]]; then
+if [[ "$SKIP_SITE_CONFIG" != "true" ]] && [[ "$SKIP_SITE_CONFIG" != "1" ]]; then
     echo "  - site-config"
 else
     echo "  - site-config (skipped - configure separately)"

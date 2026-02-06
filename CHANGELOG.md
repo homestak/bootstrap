@@ -16,6 +16,10 @@
   - CLI prints migration hint directing to site-config
   - ~130 lines of embedded Python removed from homestak.sh
 
+### Fixed
+- Fix install.sh to abort on code repo clone failure instead of silently continuing (iac-driver#163)
+- Make `SKIP_SITE_CONFIG` env-overridable in install.sh for controller-based bootstrap (iac-driver#163)
+
 ### Changed
 - Update `test_spec_client.sh` to use iac-driver controller as test fixture (#38)
   - HTTPS with self-signed cert instead of HTTP
