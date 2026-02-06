@@ -2,6 +2,25 @@
 
 ## Unreleased
 
+### Removed
+- Remove `homestak serve` command (#38)
+  - Superseded by iac-driver controller (`./run.sh serve`)
+  - CLI prints migration hint directing to iac-driver controller
+  - Delete `lib/serve.py` (HTTP spec server)
+  - Delete `lib/spec_resolver.py` (spec loading/FK resolution)
+  - Delete `tests/test_serve.sh` (serve module tests)
+
+### Removed
+- Remove `homestak spec validate` command (#40)
+  - Moved to site-config as `scripts/validate-schemas.sh`
+  - CLI prints migration hint directing to site-config
+  - ~130 lines of embedded Python removed from homestak.sh
+
+### Changed
+- Update `test_spec_client.sh` to use iac-driver controller as test fixture (#38)
+  - HTTPS with self-signed cert instead of HTTP
+  - Uses `--insecure` flag for self-signed cert handling
+
 ## v0.45 - 2026-02-02
 
 ### Theme: Create Integration

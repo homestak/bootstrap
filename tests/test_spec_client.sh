@@ -12,6 +12,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 BOOTSTRAP_DIR="$(dirname "$SCRIPT_DIR")"
+IAC_DIR="$(dirname "$BOOTSTRAP_DIR")/iac-driver"
 PORT=44598  # Use non-default port for testing
 SERVER_PID=""
 VERBOSE=false
@@ -64,30 +65,36 @@ fail() {
 }
 
 start_server() {
-    log "Starting server on port $PORT..."
+    log "Starting controller on port $PORT..."
 
-    # Set PYTHONPATH and start server in background
-    cd "$BOOTSTRAP_DIR"
-    PYTHONPATH="$BOOTSTRAP_DIR" python3 -m lib.serve --port "$PORT" --bind 127.0.0.1 &
+    if [[ ! -f "$IAC_DIR/run.sh" ]]; then
+        log "${RED}iac-driver not found at $IAC_DIR${NC}"
+        exit 1
+    fi
+
+    # Start iac-driver controller in background (HTTPS with self-signed cert)
+    cd "$IAC_DIR"
+    ./run.sh serve --port "$PORT" --bind 127.0.0.1 > /tmp/test-controller.log 2>&1 &
     SERVER_PID=$!
 
-    # Wait for server to be ready
+    # Wait for server to be ready (HTTPS, skip cert verification)
     local attempts=0
-    while ! curl -s "http://127.0.0.1:$PORT/health" >/dev/null 2>&1; do
-        sleep 0.2
+    while ! curl -sk "https://127.0.0.1:$PORT/health" >/dev/null 2>&1; do
+        sleep 0.5
         ((attempts++))
-        if [[ $attempts -gt 25 ]]; then
-            log "${RED}Server failed to start${NC}"
+        if [[ $attempts -gt 20 ]]; then
+            log "${RED}Controller failed to start. Log:${NC}"
+            tail -20 /tmp/test-controller.log 2>/dev/null || true
             exit 1
         fi
     done
-    log "Server started (PID: $SERVER_PID)"
+    log "Controller started (PID: $SERVER_PID)"
 }
 
 run_client() {
-    # Run spec client with test state directory
+    # Run spec client with test state directory (--insecure for self-signed cert)
     cd "$BOOTSTRAP_DIR"
-    PYTHONPATH="$BOOTSTRAP_DIR" python3 -m lib.spec_client --output "$TEST_STATE_DIR" "$@"
+    PYTHONPATH="$BOOTSTRAP_DIR" python3 -m lib.spec_client --output "$TEST_STATE_DIR" --insecure "$@"
 }
 
 # Parse arguments
@@ -124,7 +131,7 @@ else
 fi
 
 # Test 2: Missing identity argument
-output=$(run_client --server "http://127.0.0.1:$PORT" 2>&1) && exit_code=0 || exit_code=$?
+output=$(run_client --server "https://127.0.0.1:$PORT" 2>&1) && exit_code=0 || exit_code=$?
 if [[ $exit_code -eq 1 ]] && echo "$output" | grep -q "identity.*required"; then
     pass "Missing identity returns exit 1"
 else
@@ -132,7 +139,7 @@ else
 fi
 
 # Test 3: Fetch existing spec (base - network auth)
-output=$(run_client --server "http://127.0.0.1:$PORT" --identity base 2>&1) && exit_code=0 || exit_code=$?
+output=$(run_client --server "https://127.0.0.1:$PORT" --identity base 2>&1) && exit_code=0 || exit_code=$?
 if [[ $exit_code -eq 0 ]] && echo "$output" | grep -q "Spec fetched successfully"; then
     pass "Fetch existing spec succeeds"
     log_verbose "      Output: $output"
@@ -151,7 +158,7 @@ else
 fi
 
 # Test 5: Fetch non-existent spec
-output=$(run_client --server "http://127.0.0.1:$PORT" --identity nonexistent-spec-12345 2>&1) && exit_code=0 || exit_code=$?
+output=$(run_client --server "https://127.0.0.1:$PORT" --identity nonexistent-spec-12345 2>&1) && exit_code=0 || exit_code=$?
 if [[ $exit_code -eq 2 ]] && echo "$output" | grep -q "E200"; then
     pass "Non-existent spec returns exit 2 with E200"
 else
@@ -167,7 +174,7 @@ else
 fi
 
 # Test 7: Environment variables work
-export HOMESTAK_DISCOVERY="http://127.0.0.1:$PORT"
+export HOMESTAK_DISCOVERY="https://127.0.0.1:$PORT"
 export HOMESTAK_IDENTITY="base"
 output=$(run_client 2>&1) && exit_code=0 || exit_code=$?
 if [[ $exit_code -eq 0 ]] || echo "$output" | grep -q "E200"; then
@@ -178,9 +185,9 @@ fi
 unset HOMESTAK_DISCOVERY HOMESTAK_IDENTITY
 
 # Test 8: CLI flags override env vars
-export HOMESTAK_DISCOVERY="http://wrong-host:12345"
+export HOMESTAK_DISCOVERY="https://wrong-host:12345"
 export HOMESTAK_IDENTITY="wrong-identity"
-output=$(run_client --server "http://127.0.0.1:$PORT" --identity base 2>&1) && exit_code=0 || exit_code=$?
+output=$(run_client --server "https://127.0.0.1:$PORT" --identity base 2>&1) && exit_code=0 || exit_code=$?
 if [[ $exit_code -eq 0 ]] || echo "$output" | grep -q "E200"; then
     pass "CLI flags override env vars"
 else
@@ -192,7 +199,7 @@ unset HOMESTAK_DISCOVERY HOMESTAK_IDENTITY
 # First fetch creates spec.yaml, second fetch should backup to spec.yaml.prev
 if [[ -f "$TEST_STATE_DIR/spec.yaml" ]]; then
     # Fetch again to trigger backup
-    run_client --server "http://127.0.0.1:$PORT" --identity base 2>&1 || true
+    run_client --server "https://127.0.0.1:$PORT" --identity base 2>&1 || true
     if [[ -f "$TEST_STATE_DIR/spec.yaml.prev" ]]; then
         pass "Previous spec backed up to .prev"
     else
@@ -203,7 +210,7 @@ else
 fi
 
 # Test 10: Verbose output
-output=$(run_client --server "http://127.0.0.1:$PORT" --identity base --verbose 2>&1) && exit_code=0 || exit_code=$?
+output=$(run_client --server "https://127.0.0.1:$PORT" --identity base --verbose 2>&1) && exit_code=0 || exit_code=$?
 if echo "$output" | grep -qi "fetching\|debug"; then
     pass "Verbose flag produces extra output"
 else
