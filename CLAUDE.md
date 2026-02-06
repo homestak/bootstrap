@@ -214,10 +214,14 @@ Driver (father)                  VM (test)
    - If not, runs `homestak spec get` to fetch spec
    - Spec saved for config phase
 
-3. **Config phase (manual or automated)**:
-   - `homestak spec get` fetches resolved spec from server
-   - Server resolves FK references (posture, SSH keys)
-   - Spec validated against schema before saving
+3. **Config phase (v0.48+)**:
+   - `./run.sh config` (iac-driver verb) applies the fetched spec locally
+   - Maps spec sections to ansible role variables via `spec_to_ansible_vars()`
+   - Runs `config-apply.yml` playbook (base, users, security roles)
+   - Writes completion marker to `state/config-complete.json`
+   - **Push mode** (default): driver SSHes into VM and runs config
+   - **Pull mode**: cloud-init chains `homestak spec get` + `./run.sh config` on first boot
+   - See `iac-driver/CLAUDE.md` for full execution mode documentation
 
 ### Configuration
 
@@ -233,10 +237,13 @@ defaults:
 cd /usr/local/lib/homestak/iac-driver && ./run.sh serve
 ```
 
-**Validation Scenario**:
+**Validation Scenarios**:
 ```bash
-# Test create → config flow end-to-end
+# Test create → specify flow (push verification)
 cd /usr/local/lib/homestak/iac-driver && ./run.sh --scenario spec-vm-push-roundtrip --host father
+
+# Test create → config flow (pull verification, v0.48+)
+cd /usr/local/lib/homestak/iac-driver && ./run.sh --scenario spec-vm-pull-roundtrip --host father
 ```
 
 ### Auth Model by Posture
