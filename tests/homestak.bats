@@ -208,22 +208,16 @@ load_functions() {
     [[ "$output" =~ "Unknown spec subcommand" ]]
 }
 
-@test "spec validate requires path" {
+@test "spec validate shows migration hint" {
     run "$HOMESTAK_SH" spec validate
-    [ "$status" -eq 2 ]
-    [[ "$output" =~ "Usage: homestak spec validate" ]]
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "moved to site-config" ]]
 }
 
-@test "spec validate unknown option fails" {
-    run "$HOMESTAK_SH" spec validate --badoption
-    [ "$status" -eq 2 ]
-    [[ "$output" =~ "Unknown option" ]]
-}
-
-@test "spec validate reports missing file" {
-    run "$HOMESTAK_SH" spec validate /nonexistent/file.yaml
-    [ "$status" -eq 2 ]
-    [[ "$output" =~ "not found" ]]
+@test "spec validate with args still shows migration hint" {
+    run "$HOMESTAK_SH" spec validate /some/file.yaml
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "moved to site-config" ]]
 }
 
 #
