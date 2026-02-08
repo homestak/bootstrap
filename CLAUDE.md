@@ -147,7 +147,7 @@ homestak images list --version v0.22     # List images in specific release
 
 ### Spec Management
 
-The `spec` command fetches VM specifications from the controller:
+The `spec` command fetches VM specifications from the server:
 
 ```bash
 # Fetch spec from server (manual testing)
@@ -189,8 +189,8 @@ The create → config flow enables automatic spec discovery for newly provisione
 ```
 Driver (father)                  VM (test)
 ┌─────────────────┐              ┌─────────────────┐
-│ ./run.sh serve  │◄─────────────│ homestak spec   │
-│ (controller)    │   GET /spec  │ get             │
+│ ./run.sh server │◄─────────────│ homestak spec   │
+│ start (daemon)  │   GET /spec  │ get             │
 │ :44443          │   /test      │                 │
 └─────────────────┘              └─────────────────┘
                                         │
@@ -231,10 +231,10 @@ defaults:
   spec_server: "https://father:44443"
 ```
 
-**Controller**:
+**Server**:
 ```bash
 # Start on driver (iac-driver)
-cd /usr/local/lib/homestak/iac-driver && ./run.sh serve
+cd /usr/local/lib/homestak/iac-driver && ./run.sh server start
 ```
 
 **Validation Scenarios**:
