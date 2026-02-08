@@ -240,10 +240,10 @@ cd /usr/local/lib/homestak/iac-driver && ./run.sh serve
 **Validation Scenarios**:
 ```bash
 # Test create → specify flow (push verification)
-cd /usr/local/lib/homestak/iac-driver && ./run.sh --scenario spec-vm-push-roundtrip --host father
+cd /usr/local/lib/homestak/iac-driver && ./run.sh scenario push-vm-roundtrip -H father
 
 # Test create → config flow (pull verification, v0.48+)
-cd /usr/local/lib/homestak/iac-driver && ./run.sh --scenario spec-vm-pull-roundtrip --host father
+cd /usr/local/lib/homestak/iac-driver && ./run.sh scenario pull-vm-roundtrip -H father
 ```
 
 ### Auth Model by Posture
