@@ -4,8 +4,8 @@
 
 ### Removed
 - Remove `homestak serve` command (#38)
-  - Superseded by iac-driver controller (`./run.sh serve`)
-  - CLI prints migration hint directing to iac-driver controller
+  - Superseded by iac-driver server daemon (`./run.sh server start`)
+  - CLI prints migration hint directing to iac-driver server
   - Delete `lib/serve.py` (HTTP spec server)
   - Delete `lib/spec_resolver.py` (spec loading/FK resolution)
   - Delete `tests/test_serve.sh` (serve module tests)
