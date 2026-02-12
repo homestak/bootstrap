@@ -4,6 +4,7 @@
 
 ### Features
 - Add `--branch <name>` flag to `homestak update` for switching repos to a named branch (#49)
+- Add `tests/test-install-remote.sh` — bootstrap install integration test migrated from iac-driver (#45)
 
 ### Removed
 - Remove `homestak playbook` command — use `homestak scenario <name>` instead (#39)
