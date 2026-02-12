@@ -53,6 +53,7 @@ usage() {
     echo "Update options:"
     echo "  --dry-run                 Show what would be updated without making changes"
     echo "  --version <tag>           Checkout specific version tag (e.g., v0.24)"
+    echo "  --branch <name>           Switch repos to named branch (e.g., sprint/bootstrap-cleanup)"
     echo "  --stash                   Stash uncommitted changes before updating"
     echo ""
     echo "Image subcommands:"
@@ -80,6 +81,7 @@ usage() {
     echo "  homestak install packer"
     echo "  homestak update --dry-run"
     echo "  homestak update --version v0.24"
+    echo "  homestak update --branch sprint/my-feature"
     echo "  homestak preflight"
     echo "  homestak preflight mother"
     echo "  homestak spec get --server https://father:44443 --identity dev1"
@@ -211,16 +213,23 @@ spec_validate_removed() {
 update_repos() {
     local dry_run=false
     local version=""
+    local branch=""
     local stash=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --dry-run) dry_run=true; shift ;;
             --version) version="$2"; shift 2 ;;
+            --branch) branch="$2"; shift 2 ;;
             --stash) stash=true; shift ;;
             *) echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
+
+    if [[ -n "$version" && -n "$branch" ]]; then
+        echo -e "${RED}Cannot use --version and --branch together${NC}"
+        exit 1
+    fi
 
     local all_repos=("bootstrap" "ansible" "iac-driver" "tofu" "packer" "site-config")
     local success_count=0
@@ -230,6 +239,8 @@ update_repos() {
         echo -e "${GREEN}==>${NC} Checking for updates..."
     elif [[ -n "$version" ]]; then
         echo -e "${GREEN}==>${NC} Updating to $version..."
+    elif [[ -n "$branch" ]]; then
+        echo -e "${GREEN}==>${NC} Switching to branch $branch..."
     else
         echo -e "${GREEN}==>${NC} Updating repositories..."
     fi
@@ -266,6 +277,13 @@ update_repos() {
                     printf "  %-12s %s\n" "$repo" "(tag $version not found)"
                     continue
                 fi
+            elif [[ -n "$branch" ]]; then
+                if git -C "$target_dir" ls-remote --heads origin "$branch" 2>/dev/null | grep -q .; then
+                    printf "  %-12s %s\n" "$repo" "branch $branch available"
+                else
+                    printf "  %-12s %s\n" "$repo" "(branch $branch not found)"
+                fi
+                continue
             fi
             if [[ "$local_ref" == "$remote_ref" ]]; then
                 printf "  %-12s %s\n" "$repo" "up to date"
@@ -297,7 +315,7 @@ update_repos() {
         fi
 
         if [[ -n "$version" ]]; then
-            # Update to specific version
+            # Update to specific version tag
             if git -C "$target_dir" rev-parse "refs/tags/$version" >/dev/null 2>&1; then
                 if git -C "$target_dir" checkout -q "$version" 2>/dev/null; then
                     echo -e "${GREEN}$version${NC}"
@@ -309,6 +327,32 @@ update_repos() {
             else
                 echo -e "${YELLOW}tag not found${NC}"
                 ((fail_count++))
+            fi
+        elif [[ -n "$branch" ]]; then
+            # Switch to named branch
+            if ! git -C "$target_dir" ls-remote --heads origin "$branch" 2>/dev/null | grep -q .; then
+                echo -e "${YELLOW}branch not found${NC}"
+                ((fail_count++))
+                continue
+            fi
+            # Check if local branch already exists
+            if git -C "$target_dir" show-ref --verify --quiet "refs/heads/$branch" 2>/dev/null; then
+                if git -C "$target_dir" checkout -q "$branch" 2>/dev/null && \
+                   git -C "$target_dir" pull -q origin "$branch" 2>/dev/null; then
+                    echo -e "${GREEN}$branch${NC}"
+                    ((success_count++))
+                else
+                    echo -e "${RED}checkout/pull failed${NC}"
+                    ((fail_count++))
+                fi
+            else
+                if git -C "$target_dir" checkout -q -b "$branch" "origin/$branch" 2>/dev/null; then
+                    echo -e "${GREEN}$branch (new)${NC}"
+                    ((success_count++))
+                else
+                    echo -e "${RED}checkout failed${NC}"
+                    ((fail_count++))
+                fi
             fi
         else
             # Update to latest
@@ -330,7 +374,11 @@ update_repos() {
 
     echo ""
     if [[ "$dry_run" == "true" ]]; then
-        echo "Run 'homestak update' to apply changes."
+        if [[ -n "$branch" ]]; then
+            echo "Run 'homestak update --branch $branch' to switch."
+        else
+            echo "Run 'homestak update' to apply changes."
+        fi
     else
         echo -e "${GREEN}==>${NC} Done. ($success_count updated, $fail_count failed)"
     fi

@@ -166,6 +166,17 @@ load_functions() {
     [ "$status" -ne 0 ]
 }
 
+@test "update --branch requires argument" {
+    run "$HOMESTAK_SH" update --branch
+    [ "$status" -ne 0 ]
+}
+
+@test "update --branch and --version are mutually exclusive" {
+    run "$HOMESTAK_SH" update --version v0.30 --branch sprint/foo
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Cannot use --version and --branch together" ]]
+}
+
 #
 # site-init tests
 #
