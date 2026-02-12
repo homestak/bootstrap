@@ -5,6 +5,11 @@
 ### Features
 - Add `--branch <name>` flag to `homestak update` for switching repos to a named branch (#49)
 
+### Removed
+- Remove `homestak playbook` command — use `homestak scenario <name>` instead (#39)
+- Remove `network` shortcut — use `ansible-playbook` directly (#39)
+- Reroute `pve-setup`, `pve-install`, `user` shortcuts to `homestak scenario --local` (#39)
+
 ### Changed
 - Rename `HOMESTAK_SPEC_SERVER` → `HOMESTAK_SERVER` in spec_client.py and CLI (iac-driver#188)
 - Consolidate `HOMESTAK_IDENTITY` + `HOMESTAK_AUTH_TOKEN` into `HOMESTAK_TOKEN` (iac-driver#187)

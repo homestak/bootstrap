@@ -36,7 +36,6 @@ usage() {
     echo "Commands:"
     echo "  site-init [--force]       Initialize site configuration"
     echo "  images <subcommand>       Manage packer images"
-    echo "  playbook <name> [args]    Run an ansible playbook"
     echo "  scenario <name> [args]    Run an iac-driver scenario"
     echo "  secrets <action>          Manage secrets (decrypt, encrypt, check, validate)"
     echo "  spec <subcommand>         Manage VM specifications"
@@ -64,18 +63,16 @@ usage() {
     echo "Spec subcommands:"
     echo "  spec get --server <url> [--identity <id>] [--token <token>] [--insecure]"
     echo ""
-    echo "Playbook shortcuts:"
+    echo "Scenario shortcuts:"
     echo "  pve-setup                 Configure Proxmox host"
     echo "  pve-install               Install PVE on Debian 13"
     echo "  user                      User management"
-    echo "  network                   Network configuration"
     echo ""
     echo "Examples:"
     echo "  homestak --version"
     echo "  homestak site-init"
     echo "  homestak images download all --publish"
     echo "  homestak pve-setup"
-    echo "  homestak playbook user -e local_user=myuser"
     echo "  homestak scenario pve-setup --local"
     echo "  homestak secrets decrypt"
     echo "  homestak install packer"
@@ -87,41 +84,6 @@ usage() {
     echo "  homestak spec get --server https://father:44443 --identity dev1"
     echo ""
     exit 1
-}
-
-run_playbook() {
-    local playbook="$1"
-    shift
-    local playbook_file
-
-    # Map short names to playbook files
-    case "$playbook" in
-        pve-setup)   playbook_file="$ANSIBLE_DIR/playbooks/pve-setup.yml" ;;
-        pve-install) playbook_file="$ANSIBLE_DIR/playbooks/pve-install.yml" ;;
-        user)        playbook_file="$ANSIBLE_DIR/playbooks/user.yml" ;;
-        network)     playbook_file="$ANSIBLE_DIR/playbooks/pve-network.yml" ;;
-        *)
-            if [[ -f "$playbook" ]]; then
-                playbook_file="$playbook"
-            elif [[ -f "$ANSIBLE_DIR/playbooks/$playbook" ]]; then
-                playbook_file="$ANSIBLE_DIR/playbooks/$playbook"
-            elif [[ -f "$ANSIBLE_DIR/playbooks/${playbook}.yml" ]]; then
-                playbook_file="$ANSIBLE_DIR/playbooks/${playbook}.yml"
-            else
-                echo -e "${RED}Unknown playbook: $playbook${NC}"
-                exit 1
-            fi
-            ;;
-    esac
-
-    if [[ ! -f "$playbook_file" ]]; then
-        echo -e "${RED}Playbook not found: $playbook_file${NC}"
-        exit 1
-    fi
-
-    echo -e "${GREEN}==>${NC} Running playbook: $(basename "$playbook_file")"
-    cd "$ANSIBLE_DIR"
-    exec ansible-playbook -i inventory/local.yml "$playbook_file" -c local "$@"
 }
 
 run_scenario() {
@@ -830,8 +792,11 @@ case "$CMD" in
         esac
         ;;
     playbook)
-        [[ $# -lt 1 ]] && { echo "Usage: homestak playbook <name> [args]"; exit 1; }
-        run_playbook "$@"
+        echo -e "${YELLOW}The 'homestak playbook' command has been removed.${NC}"
+        echo "Use 'homestak scenario <name>' instead:"
+        echo "  homestak scenario pve-setup --local"
+        echo "  homestak scenario user-setup --local"
+        exit 1
         ;;
     scenario)
         [[ $# -lt 1 ]] && { echo "Usage: homestak scenario <name> [args]"; exit 1; }
@@ -874,9 +839,12 @@ case "$CMD" in
         echo "  cd /usr/local/lib/homestak/iac-driver && ./run.sh serve"
         exit 1
         ;;
-    # Playbook shortcuts
-    pve-setup|pve-install|user|network)
-        run_playbook "$CMD" "$@"
+    # Scenario shortcuts
+    pve-setup|pve-install)
+        run_scenario pve-setup --local "$@"
+        ;;
+    user)
+        run_scenario user-setup --local "$@"
         ;;
     -h|--help|help)
         usage

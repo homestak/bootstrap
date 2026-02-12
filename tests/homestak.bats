@@ -93,13 +93,18 @@ load_functions() {
     [[ "$output" =~ "Homestak Status" ]] || [[ "$output" =~ "status" ]]
 }
 
-@test "playbook shortcuts are recognized" {
-    # These should fail with "not found" but prove routing works
-    for cmd in pve-setup pve-install user network; do
+@test "scenario shortcuts are recognized" {
+    # These should fail looking for iac-driver, not "unknown command"
+    for cmd in pve-setup pve-install user; do
         run "$HOMESTAK_SH" "$cmd" 2>&1
-        # Should fail looking for playbook, not "unknown command"
         [[ ! "$output" =~ "Unknown command" ]]
     done
+}
+
+@test "network shortcut is removed" {
+    run "$HOMESTAK_SH" network 2>&1
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Unknown command" ]]
 }
 
 #
@@ -191,10 +196,11 @@ load_functions() {
 # Playbook/scenario routing tests
 #
 
-@test "playbook requires name" {
+@test "playbook shows removal hint" {
     run "$HOMESTAK_SH" playbook
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "Usage: homestak playbook" ]]
+    [[ "$output" =~ "removed" ]]
+    [[ "$output" =~ "homestak scenario" ]]
 }
 
 @test "scenario requires name" {
