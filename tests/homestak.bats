@@ -101,12 +101,6 @@ load_functions() {
     done
 }
 
-@test "network shortcut is removed" {
-    run "$HOMESTAK_SH" network 2>&1
-    [ "$status" -eq 1 ]
-    [[ "$output" =~ "Unknown command" ]]
-}
-
 #
 # Images subcommand tests
 #

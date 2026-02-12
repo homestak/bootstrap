@@ -8,7 +8,7 @@
 
 ### Removed
 - Remove `homestak playbook` command entirely (#39)
-- Remove `network` shortcut — use `ansible-playbook` directly (#39)
+- Remove `network` shortcut (#39)
 - Reroute `pve-setup`, `pve-install`, `user` shortcuts to `homestak scenario --local` (#39)
 
 ### Fixed
