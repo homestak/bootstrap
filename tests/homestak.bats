@@ -193,15 +193,8 @@ load_functions() {
 }
 
 #
-# Playbook/scenario routing tests
+# Scenario routing tests
 #
-
-@test "playbook shows removal hint" {
-    run "$HOMESTAK_SH" playbook
-    [ "$status" -eq 1 ]
-    [[ "$output" =~ "removed" ]]
-    [[ "$output" =~ "homestak scenario" ]]
-}
 
 @test "scenario requires name" {
     run "$HOMESTAK_SH" scenario

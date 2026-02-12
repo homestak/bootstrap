@@ -791,13 +791,6 @@ case "$CMD" in
             *) echo -e "${RED}Unknown images subcommand: $SUBCMD${NC}"; exit 1 ;;
         esac
         ;;
-    playbook)
-        echo -e "${YELLOW}The 'homestak playbook' command has been removed.${NC}"
-        echo "Use 'homestak scenario <name>' instead:"
-        echo "  homestak scenario pve-setup --local"
-        echo "  homestak scenario user-setup --local"
-        exit 1
-        ;;
     scenario)
         [[ $# -lt 1 ]] && { echo "Usage: homestak scenario <name> [args]"; exit 1; }
         run_scenario "$@"

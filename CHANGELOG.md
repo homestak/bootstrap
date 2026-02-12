@@ -7,7 +7,7 @@
 - Add `tests/test-install-remote.sh` — bootstrap install integration test migrated from iac-driver (#45)
 
 ### Removed
-- Remove `homestak playbook` command — use `homestak scenario <name>` instead (#39)
+- Remove `homestak playbook` command entirely (#39)
 - Remove `network` shortcut — use `ansible-playbook` directly (#39)
 - Reroute `pve-setup`, `pve-install`, `user` shortcuts to `homestak scenario --local` (#39)
 
