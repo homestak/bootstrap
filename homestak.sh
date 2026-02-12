@@ -263,7 +263,7 @@ update_repos() {
                 git -C "$target_dir" stash push -m "homestak update $(date +%Y%m%d-%H%M%S)" -q 2>/dev/null || true
             else
                 printf "  %-12s %s\n" "$repo" "${YELLOW}skipped (uncommitted changes, use --stash)${NC}"
-                ((fail_count++))
+                ((fail_count++)) || true
                 continue
             fi
         fi
@@ -272,7 +272,7 @@ update_repos() {
         printf "  %-12s " "$repo"
         if ! git -C "$target_dir" fetch -q origin 2>/dev/null; then
             echo -e "${RED}fetch failed${NC}"
-            ((fail_count++))
+            ((fail_count++)) || true
             continue
         fi
 
@@ -281,20 +281,20 @@ update_repos() {
             if git -C "$target_dir" rev-parse "refs/tags/$version" >/dev/null 2>&1; then
                 if git -C "$target_dir" checkout -q "$version" 2>/dev/null; then
                     echo -e "${GREEN}$version${NC}"
-                    ((success_count++))
+                    ((success_count++)) || true
                 else
                     echo -e "${RED}checkout failed${NC}"
-                    ((fail_count++))
+                    ((fail_count++)) || true
                 fi
             else
                 echo -e "${YELLOW}tag not found${NC}"
-                ((fail_count++))
+                ((fail_count++)) || true
             fi
         elif [[ -n "$branch" ]]; then
             # Switch to named branch
             if ! git -C "$target_dir" ls-remote --heads origin "$branch" 2>/dev/null | grep -q .; then
                 echo -e "${YELLOW}branch not found${NC}"
-                ((fail_count++))
+                ((fail_count++)) || true
                 continue
             fi
             # Check if local branch already exists
@@ -302,18 +302,18 @@ update_repos() {
                 if git -C "$target_dir" checkout -q "$branch" 2>/dev/null && \
                    git -C "$target_dir" pull -q origin "$branch" 2>/dev/null; then
                     echo -e "${GREEN}$branch${NC}"
-                    ((success_count++))
+                    ((success_count++)) || true
                 else
                     echo -e "${RED}checkout/pull failed${NC}"
-                    ((fail_count++))
+                    ((fail_count++)) || true
                 fi
             else
                 if git -C "$target_dir" checkout -q -b "$branch" "origin/$branch" 2>/dev/null; then
                     echo -e "${GREEN}$branch (new)${NC}"
-                    ((success_count++))
+                    ((success_count++)) || true
                 else
                     echo -e "${RED}checkout failed${NC}"
-                    ((fail_count++))
+                    ((fail_count++)) || true
                 fi
             fi
         else
@@ -326,10 +326,10 @@ update_repos() {
                 else
                     echo -e "${GREEN}updated ($before..$after)${NC}"
                 fi
-                ((success_count++))
+                ((success_count++)) || true
             else
                 echo -e "${RED}pull failed${NC}"
-                ((fail_count++))
+                ((fail_count++)) || true
             fi
         fi
     done
