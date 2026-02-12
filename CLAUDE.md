@@ -176,9 +176,11 @@ Requires `python3-yaml` for get.
 | `HOMESTAK_APPLY` | (none) | Task to run after bootstrap (pve-setup, user, network) |
 | `HOMESTAK_LIB` | /usr/local/lib/homestak | Code repos directory (for development) |
 | `HOMESTAK_ETC` | /usr/local/etc/homestak | Site-config directory (for development) |
-| `HOMESTAK_SPEC_SERVER` | (none) | Spec server URL for `spec get` (e.g., `https://father:44443`) |
-| `HOMESTAK_IDENTITY` | (none) | Node identity for `spec get` |
-| `HOMESTAK_AUTH_TOKEN` | (none) | Bearer token for `spec get` (if posture requires) |
+| `HOMESTAK_SERVER` | (none) | Spec server URL (e.g., `https://father:44443`) |
+| `HOMESTAK_TOKEN` | (none) | HMAC-signed provisioning token (minted by ConfigResolver) |
+| `HOMESTAK_SOURCE` | (none) | Repo source URL for bootstrap (e.g., server URL for pull mode) |
+| `HOMESTAK_REF` | master | Git ref for bootstrap clones (e.g., `_working` for server repos) |
+| `HOMESTAK_INSECURE` | (none) | Skip TLS verification for server connections |
 
 ## Create → Config Flow (v0.45+)
 
@@ -205,14 +207,13 @@ Driver (father)                  VM (test)
 1. **create phase (tofu)**:
    - VM provisioned with cloud-init
    - Environment variables injected to `/etc/profile.d/homestak.sh`:
-     - `HOMESTAK_SPEC_SERVER` - Spec server URL
-     - `HOMESTAK_IDENTITY` - VM identity (hostname)
-     - `HOMESTAK_AUTH_TOKEN` - Auth token (if posture requires)
+     - `HOMESTAK_SERVER` - Spec server URL
+     - `HOMESTAK_TOKEN` - HMAC-signed provisioning token (carries identity + spec FK)
 
 2. **First Boot (cloud-init runcmd)**:
-   - Checks if `config-complete.json` marker exists
-   - If not, runs `./run.sh config --fetch --insecure` (iac-driver)
-   - iac-driver fetches spec from server, applies config, writes marker
+   - Bootstraps from server (`HOMESTAK_SOURCE`) using `_working` branch
+   - Runs `./run.sh config --fetch --insecure` (iac-driver fetches spec + applies config)
+   - Config-complete marker written on success
 
 3. **Config phase (v0.48+)**:
    - `./run.sh config --fetch` (iac-driver verb) fetches spec + applies it locally
@@ -246,13 +247,9 @@ cd /usr/local/lib/homestak/iac-driver && ./run.sh scenario push-vm-roundtrip -H 
 cd /usr/local/lib/homestak/iac-driver && ./run.sh scenario pull-vm-roundtrip -H father
 ```
 
-### Auth Model by Posture
+### Authentication
 
-| Posture | Auth Method | Token |
-|---------|-------------|-------|
-| dev/local | network | (none - trust network) |
-| stage | site_token | Shared secret |
-| prod | node_token | Per-VM unique token |
+VMs authenticate to the spec server using a provisioning token (`HOMESTAK_TOKEN`) — an HMAC-SHA256 signed credential carrying the node identity and spec FK. The token is minted by ConfigResolver and injected via cloud-init. The server verifies the signature against `secrets.auth.signing_key`.
 
 ## Architecture
 

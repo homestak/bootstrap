@@ -130,12 +130,13 @@ else
     fail "Missing server returns exit 1" "exit 1 + error message" "exit $exit_code: $output"
 fi
 
-# Test 2: Missing identity argument
+# Test 2: Identity defaults to hostname (no longer required as CLI arg)
+# Just verify that --server alone proceeds to fetch (identity from hostname)
 output=$(run_client --server "https://127.0.0.1:$PORT" 2>&1) && exit_code=0 || exit_code=$?
-if [[ $exit_code -eq 1 ]] && echo "$output" | grep -q "identity.*required"; then
-    pass "Missing identity returns exit 1"
+if [[ $exit_code -eq 0 ]] || echo "$output" | grep -qE "E200|E300|E301|fetched|Fetching"; then
+    pass "Identity defaults to hostname"
 else
-    fail "Missing identity returns exit 1" "exit 1 + error message" "exit $exit_code: $output"
+    fail "Identity defaults to hostname" "exits 0 or spec error (not arg error)" "exit $exit_code: $output"
 fi
 
 # Test 3: Fetch existing spec (base - network auth)
@@ -174,26 +175,24 @@ else
 fi
 
 # Test 7: Environment variables work
-export HOMESTAK_DISCOVERY="https://127.0.0.1:$PORT"
-export HOMESTAK_IDENTITY="base"
-output=$(run_client 2>&1) && exit_code=0 || exit_code=$?
-if [[ $exit_code -eq 0 ]] || echo "$output" | grep -q "E200"; then
+export HOMESTAK_SERVER="https://127.0.0.1:$PORT"
+output=$(run_client --identity base 2>&1) && exit_code=0 || exit_code=$?
+if [[ $exit_code -eq 0 ]] || echo "$output" | grep -qE "E200|E300|E301"; then
     pass "Environment variables work"
 else
-    fail "Environment variables work" "exit 0 or E200" "exit $exit_code: $output"
+    fail "Environment variables work" "exit 0 or spec/auth error" "exit $exit_code: $output"
 fi
-unset HOMESTAK_DISCOVERY HOMESTAK_IDENTITY
+unset HOMESTAK_SERVER
 
 # Test 8: CLI flags override env vars
-export HOMESTAK_DISCOVERY="https://wrong-host:12345"
-export HOMESTAK_IDENTITY="wrong-identity"
+export HOMESTAK_SERVER="https://wrong-host:12345"
 output=$(run_client --server "https://127.0.0.1:$PORT" --identity base 2>&1) && exit_code=0 || exit_code=$?
-if [[ $exit_code -eq 0 ]] || echo "$output" | grep -q "E200"; then
+if [[ $exit_code -eq 0 ]] || echo "$output" | grep -qE "E200|E300|E301"; then
     pass "CLI flags override env vars"
 else
     fail "CLI flags override env vars" "use CLI values, not env" "exit $exit_code: $output"
 fi
-unset HOMESTAK_DISCOVERY HOMESTAK_IDENTITY
+unset HOMESTAK_SERVER
 
 # Test 9: Previous spec backed up
 # First fetch creates spec.yaml, second fetch should backup to spec.yaml.prev

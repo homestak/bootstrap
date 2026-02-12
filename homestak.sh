@@ -61,7 +61,7 @@ usage() {
     echo "  images publish [<target...>] [--overwrite]"
     echo ""
     echo "Spec subcommands:"
-    echo "  spec get --server <url> --identity <id> [--token <token>] [--insecure]"
+    echo "  spec get --server <url> [--identity <id>] [--token <token>] [--insecure]"
     echo ""
     echo "Playbook shortcuts:"
     echo "  pve-setup                 Configure Proxmox host"
