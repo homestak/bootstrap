@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+### Changed
+- Rename `HOMESTAK_SPEC_SERVER` → `HOMESTAK_SERVER` in spec_client.py and CLI (iac-driver#188)
+- Consolidate `HOMESTAK_IDENTITY` + `HOMESTAK_AUTH_TOKEN` into `HOMESTAK_TOKEN` (iac-driver#187)
+- `--identity` flag now optional in `spec get` (defaults to hostname) (iac-driver#187)
+
 ### Removed
 - Remove `homestak serve` command (#38)
   - Superseded by iac-driver server daemon (`./run.sh server start`)

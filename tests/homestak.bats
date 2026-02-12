@@ -224,20 +224,15 @@ load_functions() {
 # spec get tests
 #
 
-@test "spec get requires --server or HOMESTAK_DISCOVERY" {
+@test "spec get requires --server or HOMESTAK_SERVER" {
     run "$HOMESTAK_SH" spec get --identity test
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "server" ]] || [[ "$output" =~ "HOMESTAK_DISCOVERY" ]]
+    [[ "$output" =~ "server" ]] || [[ "$output" =~ "HOMESTAK_SERVER" ]]
 }
 
-@test "spec get requires --identity or HOMESTAK_IDENTITY" {
-    run "$HOMESTAK_SH" spec get --server http://localhost:44443
-    [ "$status" -eq 1 ]
-    [[ "$output" =~ "identity" ]] || [[ "$output" =~ "HOMESTAK_IDENTITY" ]]
-}
-
-@test "spec get with both args attempts fetch" {
-    # Should fail with connection error (no server), not argument error
+@test "spec get with server arg attempts fetch" {
+    # Identity defaults to hostname, so only --server is required.
+    # Should fail with connection error (no server), not argument error.
     run "$HOMESTAK_SH" spec get --server http://localhost:65432 --identity test 2>&1
     [ "$status" -eq 2 ]  # Server error exit code
     [[ "$output" =~ "E501" ]] || [[ "$output" =~ "Cannot connect" ]] || [[ "$output" =~ "Error" ]]
