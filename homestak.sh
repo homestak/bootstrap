@@ -36,7 +36,6 @@ usage() {
     echo "Commands:"
     echo "  site-init [--force]       Initialize site configuration"
     echo "  images <subcommand>       Manage packer images"
-    echo "  playbook <name> [args]    Run an ansible playbook"
     echo "  scenario <name> [args]    Run an iac-driver scenario"
     echo "  secrets <action>          Manage secrets (decrypt, encrypt, check, validate)"
     echo "  spec <subcommand>         Manage VM specifications"
@@ -53,6 +52,7 @@ usage() {
     echo "Update options:"
     echo "  --dry-run                 Show what would be updated without making changes"
     echo "  --version <tag>           Checkout specific version tag (e.g., v0.24)"
+    echo "  --branch <name>           Switch repos to named branch (e.g., sprint/bootstrap-cleanup)"
     echo "  --stash                   Stash uncommitted changes before updating"
     echo ""
     echo "Image subcommands:"
@@ -63,63 +63,27 @@ usage() {
     echo "Spec subcommands:"
     echo "  spec get --server <url> [--identity <id>] [--token <token>] [--insecure]"
     echo ""
-    echo "Playbook shortcuts:"
+    echo "Scenario shortcuts:"
     echo "  pve-setup                 Configure Proxmox host"
     echo "  pve-install               Install PVE on Debian 13"
     echo "  user                      User management"
-    echo "  network                   Network configuration"
     echo ""
     echo "Examples:"
     echo "  homestak --version"
     echo "  homestak site-init"
     echo "  homestak images download all --publish"
     echo "  homestak pve-setup"
-    echo "  homestak playbook user -e local_user=myuser"
     echo "  homestak scenario pve-setup --local"
     echo "  homestak secrets decrypt"
     echo "  homestak install packer"
     echo "  homestak update --dry-run"
     echo "  homestak update --version v0.24"
+    echo "  homestak update --branch sprint/my-feature"
     echo "  homestak preflight"
     echo "  homestak preflight mother"
     echo "  homestak spec get --server https://father:44443 --identity dev1"
     echo ""
     exit 1
-}
-
-run_playbook() {
-    local playbook="$1"
-    shift
-    local playbook_file
-
-    # Map short names to playbook files
-    case "$playbook" in
-        pve-setup)   playbook_file="$ANSIBLE_DIR/playbooks/pve-setup.yml" ;;
-        pve-install) playbook_file="$ANSIBLE_DIR/playbooks/pve-install.yml" ;;
-        user)        playbook_file="$ANSIBLE_DIR/playbooks/user.yml" ;;
-        network)     playbook_file="$ANSIBLE_DIR/playbooks/pve-network.yml" ;;
-        *)
-            if [[ -f "$playbook" ]]; then
-                playbook_file="$playbook"
-            elif [[ -f "$ANSIBLE_DIR/playbooks/$playbook" ]]; then
-                playbook_file="$ANSIBLE_DIR/playbooks/$playbook"
-            elif [[ -f "$ANSIBLE_DIR/playbooks/${playbook}.yml" ]]; then
-                playbook_file="$ANSIBLE_DIR/playbooks/${playbook}.yml"
-            else
-                echo -e "${RED}Unknown playbook: $playbook${NC}"
-                exit 1
-            fi
-            ;;
-    esac
-
-    if [[ ! -f "$playbook_file" ]]; then
-        echo -e "${RED}Playbook not found: $playbook_file${NC}"
-        exit 1
-    fi
-
-    echo -e "${GREEN}==>${NC} Running playbook: $(basename "$playbook_file")"
-    cd "$ANSIBLE_DIR"
-    exec ansible-playbook -i inventory/local.yml "$playbook_file" -c local "$@"
 }
 
 run_scenario() {
@@ -211,16 +175,23 @@ spec_validate_removed() {
 update_repos() {
     local dry_run=false
     local version=""
+    local branch=""
     local stash=false
 
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --dry-run) dry_run=true; shift ;;
             --version) version="$2"; shift 2 ;;
+            --branch) branch="$2"; shift 2 ;;
             --stash) stash=true; shift ;;
             *) echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
+
+    if [[ -n "$version" && -n "$branch" ]]; then
+        echo -e "${RED}Cannot use --version and --branch together${NC}"
+        exit 1
+    fi
 
     local all_repos=("bootstrap" "ansible" "iac-driver" "tofu" "packer" "site-config")
     local success_count=0
@@ -230,6 +201,8 @@ update_repos() {
         echo -e "${GREEN}==>${NC} Checking for updates..."
     elif [[ -n "$version" ]]; then
         echo -e "${GREEN}==>${NC} Updating to $version..."
+    elif [[ -n "$branch" ]]; then
+        echo -e "${GREEN}==>${NC} Switching to branch $branch..."
     else
         echo -e "${GREEN}==>${NC} Updating repositories..."
     fi
@@ -266,6 +239,13 @@ update_repos() {
                     printf "  %-12s %s\n" "$repo" "(tag $version not found)"
                     continue
                 fi
+            elif [[ -n "$branch" ]]; then
+                if git -C "$target_dir" ls-remote --heads origin "$branch" 2>/dev/null | grep -q .; then
+                    printf "  %-12s %s\n" "$repo" "branch $branch available"
+                else
+                    printf "  %-12s %s\n" "$repo" "(branch $branch not found)"
+                fi
+                continue
             fi
             if [[ "$local_ref" == "$remote_ref" ]]; then
                 printf "  %-12s %s\n" "$repo" "up to date"
@@ -283,7 +263,7 @@ update_repos() {
                 git -C "$target_dir" stash push -m "homestak update $(date +%Y%m%d-%H%M%S)" -q 2>/dev/null || true
             else
                 printf "  %-12s %s\n" "$repo" "${YELLOW}skipped (uncommitted changes, use --stash)${NC}"
-                ((fail_count++))
+                ((fail_count++)) || true
                 continue
             fi
         fi
@@ -292,23 +272,49 @@ update_repos() {
         printf "  %-12s " "$repo"
         if ! git -C "$target_dir" fetch -q origin 2>/dev/null; then
             echo -e "${RED}fetch failed${NC}"
-            ((fail_count++))
+            ((fail_count++)) || true
             continue
         fi
 
         if [[ -n "$version" ]]; then
-            # Update to specific version
+            # Update to specific version tag
             if git -C "$target_dir" rev-parse "refs/tags/$version" >/dev/null 2>&1; then
                 if git -C "$target_dir" checkout -q "$version" 2>/dev/null; then
                     echo -e "${GREEN}$version${NC}"
-                    ((success_count++))
+                    ((success_count++)) || true
                 else
                     echo -e "${RED}checkout failed${NC}"
-                    ((fail_count++))
+                    ((fail_count++)) || true
                 fi
             else
                 echo -e "${YELLOW}tag not found${NC}"
-                ((fail_count++))
+                ((fail_count++)) || true
+            fi
+        elif [[ -n "$branch" ]]; then
+            # Switch to named branch
+            if ! git -C "$target_dir" ls-remote --heads origin "$branch" 2>/dev/null | grep -q .; then
+                echo -e "${YELLOW}branch not found${NC}"
+                ((fail_count++)) || true
+                continue
+            fi
+            # Check if local branch already exists
+            if git -C "$target_dir" show-ref --verify --quiet "refs/heads/$branch" 2>/dev/null; then
+                if git -C "$target_dir" checkout -q "$branch" 2>/dev/null && \
+                   git -C "$target_dir" pull -q origin "$branch" 2>/dev/null; then
+                    echo -e "${GREEN}$branch${NC}"
+                    ((success_count++)) || true
+                else
+                    echo -e "${RED}checkout/pull failed${NC}"
+                    ((fail_count++)) || true
+                fi
+            else
+                if git -C "$target_dir" checkout -q -b "$branch" "origin/$branch" 2>/dev/null; then
+                    echo -e "${GREEN}$branch (new)${NC}"
+                    ((success_count++)) || true
+                else
+                    echo -e "${RED}checkout failed${NC}"
+                    ((fail_count++)) || true
+                fi
             fi
         else
             # Update to latest
@@ -320,17 +326,21 @@ update_repos() {
                 else
                     echo -e "${GREEN}updated ($before..$after)${NC}"
                 fi
-                ((success_count++))
+                ((success_count++)) || true
             else
                 echo -e "${RED}pull failed${NC}"
-                ((fail_count++))
+                ((fail_count++)) || true
             fi
         fi
     done
 
     echo ""
     if [[ "$dry_run" == "true" ]]; then
-        echo "Run 'homestak update' to apply changes."
+        if [[ -n "$branch" ]]; then
+            echo "Run 'homestak update --branch $branch' to switch."
+        else
+            echo "Run 'homestak update' to apply changes."
+        fi
     else
         echo -e "${GREEN}==>${NC} Done. ($success_count updated, $fail_count failed)"
     fi
@@ -781,10 +791,6 @@ case "$CMD" in
             *) echo -e "${RED}Unknown images subcommand: $SUBCMD${NC}"; exit 1 ;;
         esac
         ;;
-    playbook)
-        [[ $# -lt 1 ]] && { echo "Usage: homestak playbook <name> [args]"; exit 1; }
-        run_playbook "$@"
-        ;;
     scenario)
         [[ $# -lt 1 ]] && { echo "Usage: homestak scenario <name> [args]"; exit 1; }
         run_scenario "$@"
@@ -826,9 +832,12 @@ case "$CMD" in
         echo "  cd /usr/local/lib/homestak/iac-driver && ./run.sh serve"
         exit 1
         ;;
-    # Playbook shortcuts
-    pve-setup|pve-install|user|network)
-        run_playbook "$CMD" "$@"
+    # Scenario shortcuts
+    pve-setup|pve-install)
+        run_scenario pve-setup --local "$@"
+        ;;
+    user)
+        run_scenario user-setup --local "$@"
         ;;
     -h|--help|help)
         usage

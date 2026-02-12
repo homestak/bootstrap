@@ -93,11 +93,10 @@ load_functions() {
     [[ "$output" =~ "Homestak Status" ]] || [[ "$output" =~ "status" ]]
 }
 
-@test "playbook shortcuts are recognized" {
-    # These should fail with "not found" but prove routing works
-    for cmd in pve-setup pve-install user network; do
+@test "scenario shortcuts are recognized" {
+    # These should fail looking for iac-driver, not "unknown command"
+    for cmd in pve-setup pve-install user; do
         run "$HOMESTAK_SH" "$cmd" 2>&1
-        # Should fail looking for playbook, not "unknown command"
         [[ ! "$output" =~ "Unknown command" ]]
     done
 }
@@ -166,6 +165,17 @@ load_functions() {
     [ "$status" -ne 0 ]
 }
 
+@test "update --branch requires argument" {
+    run "$HOMESTAK_SH" update --branch
+    [ "$status" -ne 0 ]
+}
+
+@test "update --branch and --version are mutually exclusive" {
+    run "$HOMESTAK_SH" update --version v0.30 --branch sprint/foo
+    [ "$status" -eq 1 ]
+    [[ "$output" =~ "Cannot use --version and --branch together" ]]
+}
+
 #
 # site-init tests
 #
@@ -177,14 +187,8 @@ load_functions() {
 }
 
 #
-# Playbook/scenario routing tests
+# Scenario routing tests
 #
-
-@test "playbook requires name" {
-    run "$HOMESTAK_SH" playbook
-    [ "$status" -eq 1 ]
-    [[ "$output" =~ "Usage: homestak playbook" ]]
-}
 
 @test "scenario requires name" {
     run "$HOMESTAK_SH" scenario

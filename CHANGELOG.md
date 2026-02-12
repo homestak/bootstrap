@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+### Features
+- Add `--branch <name>` flag to `homestak update` for switching repos to a named branch (#49)
+- Add `tests/test-install-remote.sh` — bootstrap install integration test migrated from iac-driver (#45)
+
+### Removed
+- Remove `homestak playbook` command entirely (#39)
+- Remove `network` shortcut (#39)
+- Reroute `pve-setup`, `pve-install`, `user` shortcuts to `homestak scenario --local` (#39)
+
+### Fixed
+- Fix `homestak update` aborting after first repo due to `set -e` and `((count++))` from zero (#49)
+
 ### Changed
 - Rename `HOMESTAK_SPEC_SERVER` → `HOMESTAK_SERVER` in spec_client.py and CLI (iac-driver#188)
 - Consolidate `HOMESTAK_IDENTITY` + `HOMESTAK_AUTH_TOKEN` into `HOMESTAK_TOKEN` (iac-driver#187)
