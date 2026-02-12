@@ -17,7 +17,7 @@ curl -fsSL .../install.sh | HOMESTAK_USER=homestak bash
 # After bootstrap, use the 'homestak' command
 homestak status
 homestak pve-setup
-homestak playbook user -e local_user=myuser
+homestak scenario user-setup --local
 homestak scenario pve-setup --local
 ```
 
@@ -41,6 +41,9 @@ bootstrap/
 ├── lib/            # Python modules
 │   └── spec_client.py  # HTTP client for spec fetching
 ├── tests/          # Test scripts
+│   ├── homestak.bats          # CLI unit tests (bats)
+│   ├── test_spec_client.sh    # Spec client integration test
+│   └── test-install-remote.sh # Remote install integration test
 ├── CLAUDE.md       # This file
 └── README.md       # User-facing documentation
 ```
@@ -84,7 +87,6 @@ homestak --help                    # Show help message
 # Commands
 homestak site-init [--force]       # Initialize site configuration
 homestak images <subcommand>       # Manage packer images
-homestak playbook <name> [args]    # Run ansible playbook
 homestak scenario <name> [args]    # Run iac-driver scenario
 homestak secrets <action>          # Manage secrets (decrypt, encrypt, check, validate)
 homestak spec <subcommand>         # Manage VM specifications
@@ -96,6 +98,7 @@ homestak status                    # Show installation status
 # Update options
 homestak update --dry-run          # Preview updates without applying
 homestak update --version v0.24    # Checkout specific version across all repos
+homestak update --branch sprint/my-feature  # Switch repos to named branch
 homestak update --stash            # Stash uncommitted changes before updating
 
 # Image subcommands
@@ -103,11 +106,10 @@ homestak images list [--version <tag>]
 homestak images download <target...> [--version <tag>] [--overwrite] [--publish]
 homestak images publish [<target...>] [--overwrite]
 
-# Playbook shortcuts
+# Scenario shortcuts
 homestak pve-setup                 # Configure Proxmox host
 homestak pve-install               # Install PVE on Debian 13
 homestak user                      # User management
-homestak network                   # Network configuration
 ```
 
 ### Execution Requirements
@@ -116,7 +118,7 @@ FHS installations (`/usr/local/lib/homestak/`) are root-owned, so scenario execu
 
 ```bash
 sudo homestak scenario vm-roundtrip --host father
-sudo homestak playbook pve-setup
+sudo homestak pve-setup
 ```
 
 Commands that only read configuration (status, preflight, images list) work without sudo.
@@ -173,7 +175,7 @@ Requires `python3-yaml` for get.
 |----------|---------|-------------|
 | `HOMESTAK_BRANCH` | master | Git branch to use for all repos |
 | `HOMESTAK_USER` | (none) | Create this user with sudo privileges |
-| `HOMESTAK_APPLY` | (none) | Task to run after bootstrap (pve-setup, user, network) |
+| `HOMESTAK_APPLY` | (none) | Task to run after bootstrap (pve-setup, pve-install, user) |
 | `HOMESTAK_LIB` | /usr/local/lib/homestak | Code repos directory (for development) |
 | `HOMESTAK_ETC` | /usr/local/etc/homestak | Site-config directory (for development) |
 | `HOMESTAK_SERVER` | (none) | Spec server URL (e.g., `https://father:44443`) |
