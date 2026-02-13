@@ -214,16 +214,16 @@ Driver (father)                  VM (test)
 
 2. **First Boot (cloud-init runcmd)**:
    - Bootstraps from server (`HOMESTAK_SOURCE`) using `_working` branch
-   - Runs `./run.sh config --fetch --insecure` (iac-driver fetches spec + applies config)
+   - Runs `./run.sh config fetch --insecure && ./run.sh config apply` (iac-driver fetches spec + applies config)
    - Config-complete marker written on success
 
 3. **Config phase (v0.48+)**:
-   - `./run.sh config --fetch` (iac-driver verb) fetches spec + applies it locally
+   - `./run.sh config fetch` downloads spec from server; `./run.sh config apply` applies it locally
    - Maps spec sections to ansible role variables via `spec_to_ansible_vars()`
    - Runs `config-apply.yml` playbook (base, users, security roles)
    - Writes completion marker to `state/config-complete.json`
    - **Push mode** (default): driver SSHes into VM and runs config
-   - **Pull mode**: cloud-init runs `./run.sh config --fetch --insecure` on first boot
+   - **Pull mode**: cloud-init runs `./run.sh config fetch --insecure && ./run.sh config apply` on first boot
    - See `iac-driver/CLAUDE.md` for full execution mode documentation
 
 ### Configuration
@@ -243,10 +243,10 @@ cd /usr/local/lib/homestak/iac-driver && ./run.sh server start
 **Validation Scenarios**:
 ```bash
 # Test create → specify flow (push verification)
-cd /usr/local/lib/homestak/iac-driver && ./run.sh scenario push-vm-roundtrip -H father
+cd /usr/local/lib/homestak/iac-driver && ./run.sh scenario run push-vm-roundtrip -H father
 
 # Test create → config flow (pull verification, v0.48+)
-cd /usr/local/lib/homestak/iac-driver && ./run.sh scenario pull-vm-roundtrip -H father
+cd /usr/local/lib/homestak/iac-driver && ./run.sh scenario run pull-vm-roundtrip -H father
 ```
 
 ### Authentication
