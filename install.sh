@@ -238,20 +238,20 @@ else
     # Brief delay to allow services to fully release locks
     sleep 2
 
-    # Wait for apt processes to finish (apt-daily may have already started apt-get)
+    # Wait for any running apt/dpkg processes (cloud-init may have started apt-get).
+    # DPkg::Lock::Timeout only covers dpkg locks, not apt's own lists lock, so
+    # we must wait for processes to finish before running apt-get update.
     log_info "Waiting for apt processes to complete..."
-    max_wait=120
-    waited=0
-    # Check for apt-get, apt, or dpkg processes
-    # Note: pgrep -x doesn't support regex, so check each process separately
     while pgrep -x apt-get >/dev/null 2>&1 || pgrep -x apt >/dev/null 2>&1 || pgrep -x dpkg >/dev/null 2>&1; do
-        if [ $waited -ge $max_wait ]; then
-            log_warn "Timeout waiting for apt processes after ${max_wait}s, proceeding anyway"
-            break
-        fi
         sleep 2
-        waited=$((waited + 2))
     done
+
+    # Set system-wide apt lock wait so ALL apt-get calls (including downstream
+    # Makefiles) wait indefinitely for dpkg locks instead of failing immediately.
+    # This covers install-deps in ansible, iac-driver, tofu Makefiles without
+    # requiring cross-repo changes.
+    log_info "Configuring apt lock wait policy..."
+    echo 'DPkg::Lock::Timeout "-1";' > /etc/apt/apt.conf.d/99-homestak-lock-wait
 fi
 
 #
@@ -281,11 +281,11 @@ apt_retry() {
     return 1
 }
 
-apt_retry "apt-get -o DPkg::Lock::Timeout=60 update -qq" || {
+apt_retry "apt-get update -qq" || {
     log_error "apt-get update failed after multiple attempts"
     exit 1
 }
-apt_retry "apt-get -o DPkg::Lock::Timeout=60 install -y -qq git make" || {
+apt_retry "apt-get install -y -qq git make" || {
     log_error "apt-get install failed after multiple attempts"
     exit 1
 }

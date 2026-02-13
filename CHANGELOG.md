@@ -12,6 +12,8 @@
 - Reroute `pve-setup`, `pve-install`, `user` shortcuts to `homestak scenario --local` (#39)
 
 ### Fixed
+- Fix apt lock contention during install-deps by dropping `/etc/apt/apt.conf.d/99-homestak-lock-wait` with `DPkg::Lock::Timeout "-1"` for dpkg locks (#52)
+- Simplify apt lock handling: indefinite process wait (no timeout) + system-wide dpkg config replaces per-call `-o DPkg::Lock::Timeout=60` (#52)
 - Fix `homestak update` aborting after first repo due to `set -e` and `((count++))` from zero (#49)
 
 ### Changed
