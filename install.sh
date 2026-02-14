@@ -244,14 +244,20 @@ wait_for_apt() {
 if [[ "$SKIP_APT_WAIT" == true ]]; then
     log_info "Skipping apt wait (--skip-apt-wait)"
 else
-    # Wait for cloud-init to finish apt operations before we start ours.
+    # Wait for cloud-init to finish before we start apt operations.
     # On first boot, cloud-init runs apt-get update (cc_apt_configure module).
-    # Use a bounded wait — PVE images can take 5+ minutes for full cloud-init
-    # because they update Proxmox repos. We just need apt locks released, not
-    # full cloud-init completion. Fall through to wait_for_apt as backup.
+    #
+    # IMPORTANT: When install.sh runs inside cloud-init runcmd (pull mode),
+    # "cloud-init status --wait" deadlocks — it waits for cloud-init to finish,
+    # but cloud-init waits for runcmd (us) to finish. Detect this and skip.
     if command -v cloud-init >/dev/null 2>&1; then
-        log_info "Waiting for cloud-init (up to 180s)..."
-        timeout 180 cloud-init status --wait >/dev/null 2>&1 || true
+        ci_status=$(cloud-init status 2>/dev/null || true)
+        if echo "$ci_status" | grep -q "status: running"; then
+            log_info "Running inside cloud-init — skipping cloud-init wait"
+        else
+            log_info "Waiting for cloud-init to finish..."
+            cloud-init status --wait >/dev/null 2>&1 || true
+        fi
     fi
 
     log_info "Stopping apt timers and services to prevent lock contention..."
