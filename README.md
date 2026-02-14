@@ -31,7 +31,7 @@ homestak playbook user -e local_user=myuser
 homestak scenario pve-setup --local
 
 # Change network settings
-homestak network -e pve_network_tasks='["static"]' -e pve_new_ip=10.0.12.100
+homestak network -e pve_network_tasks='["static"]' -e pve_new_ip=198.51.100.100
 
 # Install optional modules
 homestak install packer
