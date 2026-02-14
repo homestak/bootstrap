@@ -228,6 +228,19 @@ log_info "Ref: $REF"
 #
 # Use --skip-apt-wait to bypass this when apt is known to be idle.
 #
+# wait_for_apt: Block until no apt/dpkg processes are running.
+# DPkg::Lock::Timeout only covers dpkg locks, not apt's own lists lock
+# (/var/lib/apt/lists/lock), so we must wait for processes to finish.
+wait_for_apt() {
+    if [[ "$SKIP_APT_WAIT" == true ]]; then
+        return 0
+    fi
+    log_info "Waiting for apt processes to complete..."
+    while pgrep -x apt-get >/dev/null 2>&1 || pgrep -x apt >/dev/null 2>&1 || pgrep -x dpkg >/dev/null 2>&1; do
+        sleep 2
+    done
+}
+
 if [[ "$SKIP_APT_WAIT" == true ]]; then
     log_info "Skipping apt wait (--skip-apt-wait)"
 else
@@ -238,13 +251,7 @@ else
     # Brief delay to allow services to fully release locks
     sleep 2
 
-    # Wait for any running apt/dpkg processes (cloud-init may have started apt-get).
-    # DPkg::Lock::Timeout only covers dpkg locks, not apt's own lists lock, so
-    # we must wait for processes to finish before running apt-get update.
-    log_info "Waiting for apt processes to complete..."
-    while pgrep -x apt-get >/dev/null 2>&1 || pgrep -x apt >/dev/null 2>&1 || pgrep -x dpkg >/dev/null 2>&1; do
-        sleep 2
-    done
+    wait_for_apt
 
     # Set system-wide apt lock wait so ALL apt-get calls (including downstream
     # Makefiles) wait indefinitely for dpkg locks instead of failing immediately.
@@ -371,6 +378,9 @@ export HOMESTAK_SITE_CONFIG="$HOMESTAK_ETC"
 #
 # Step 4: Install dependencies for each repo
 #
+# Re-check for apt processes — cloud-init or timers may have started new
+# apt operations during repo cloning (Steps 2-3).
+wait_for_apt
 log_info "Installing dependencies..."
 for repo in "${CODE_REPOS[@]}"; do
     if [[ -f "$HOMESTAK_LIB/$repo/Makefile" ]] && [[ "$repo" != "bootstrap" ]]; then
