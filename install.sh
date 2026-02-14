@@ -228,30 +228,48 @@ log_info "Ref: $REF"
 #
 # Use --skip-apt-wait to bypass this when apt is known to be idle.
 #
+# wait_for_apt: Block until no apt/dpkg processes are running.
+# DPkg::Lock::Timeout only covers dpkg locks, not apt's own lists lock
+# (/var/lib/apt/lists/lock), so we must wait for processes to finish.
+wait_for_apt() {
+    if [[ "$SKIP_APT_WAIT" == true ]]; then
+        return 0
+    fi
+    log_info "Waiting for apt processes to complete..."
+    while pgrep -x apt-get >/dev/null 2>&1 || pgrep -x apt >/dev/null 2>&1 || pgrep -x dpkg >/dev/null 2>&1; do
+        sleep 2
+    done
+}
+
 if [[ "$SKIP_APT_WAIT" == true ]]; then
     log_info "Skipping apt wait (--skip-apt-wait)"
 else
-    log_info "Stopping apt timers to prevent lock contention..."
+    # Wait for cloud-init to finish apt operations before we start ours.
+    # On first boot, cloud-init runs apt-get update (cc_apt_configure module).
+    # Use a bounded wait — PVE images can take 5+ minutes for full cloud-init
+    # because they update Proxmox repos. We just need apt locks released, not
+    # full cloud-init completion. Fall through to wait_for_apt as backup.
+    if command -v cloud-init >/dev/null 2>&1; then
+        log_info "Waiting for cloud-init (up to 180s)..."
+        timeout 180 cloud-init status --wait >/dev/null 2>&1 || true
+    fi
+
+    log_info "Stopping apt timers and services to prevent lock contention..."
     systemctl stop apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
     systemctl stop apt-daily.service apt-daily-upgrade.service 2>/dev/null || true
+    systemctl stop unattended-upgrades.service 2>/dev/null || true
 
     # Brief delay to allow services to fully release locks
     sleep 2
 
-    # Wait for apt processes to finish (apt-daily may have already started apt-get)
-    log_info "Waiting for apt processes to complete..."
-    max_wait=120
-    waited=0
-    # Check for apt-get, apt, or dpkg processes
-    # Note: pgrep -x doesn't support regex, so check each process separately
-    while pgrep -x apt-get >/dev/null 2>&1 || pgrep -x apt >/dev/null 2>&1 || pgrep -x dpkg >/dev/null 2>&1; do
-        if [ $waited -ge $max_wait ]; then
-            log_warn "Timeout waiting for apt processes after ${max_wait}s, proceeding anyway"
-            break
-        fi
-        sleep 2
-        waited=$((waited + 2))
-    done
+    wait_for_apt
+
+    # Set system-wide apt lock wait so ALL apt-get calls (including downstream
+    # Makefiles) wait indefinitely for dpkg locks instead of failing immediately.
+    # This covers install-deps in ansible, iac-driver, tofu Makefiles without
+    # requiring cross-repo changes.
+    log_info "Configuring apt lock wait policy..."
+    echo 'DPkg::Lock::Timeout "-1";' > /etc/apt/apt.conf.d/99-homestak-lock-wait
 fi
 
 #
@@ -281,11 +299,11 @@ apt_retry() {
     return 1
 }
 
-apt_retry "apt-get -o DPkg::Lock::Timeout=60 update -qq" || {
+apt_retry "apt-get update -qq" || {
     log_error "apt-get update failed after multiple attempts"
     exit 1
 }
-apt_retry "apt-get -o DPkg::Lock::Timeout=60 install -y -qq git make" || {
+apt_retry "apt-get install -y -qq git make" || {
     log_error "apt-get install failed after multiple attempts"
     exit 1
 }
@@ -371,9 +389,15 @@ export HOMESTAK_SITE_CONFIG="$HOMESTAK_ETC"
 #
 # Step 4: Install dependencies for each repo
 #
+# Clear apt cache to prevent corrupt-cache errors from interrupted operations
+# (e.g., cloud-init apt-get update that was killed or overlapped).
+apt-get clean 2>/dev/null || true
 log_info "Installing dependencies..."
 for repo in "${CODE_REPOS[@]}"; do
     if [[ -f "$HOMESTAK_LIB/$repo/Makefile" ]] && [[ "$repo" != "bootstrap" ]]; then
+        # Wait before EACH repo — apt processes may start between repos
+        # (unattended-upgrades, cloud-init, etc. can spawn new apt-get at any time)
+        wait_for_apt
         log_info "  $repo..."
         make -C "$HOMESTAK_LIB/$repo" install-deps 2>&1 | sed 's/^/    /'
     fi

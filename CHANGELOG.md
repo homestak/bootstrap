@@ -12,6 +12,13 @@
 - Reroute `pve-setup`, `pve-install`, `user` shortcuts to `homestak scenario --local` (#39)
 
 ### Fixed
+- Fix apt lock contention during install-deps by dropping `/etc/apt/apt.conf.d/99-homestak-lock-wait` with `DPkg::Lock::Timeout "-1"` for dpkg locks (#52)
+- Fix apt lists lock contention: re-check for apt processes before install-deps phase to handle cloud-init overlap (#52)
+- Simplify apt lock handling: indefinite process wait (no timeout) + system-wide dpkg config replaces per-call `-o DPkg::Lock::Timeout=60` (#52)
+- Wait for cloud-init before apt operations to avoid lock contention with `cc_apt_configure` (#52)
+- Add 180s timeout to cloud-init wait to prevent bootstrap hanging on PVE images (#52)
+- Clean apt cache before install-deps to avoid corrupt cache from interrupted cloud-init (#52)
+- Stop apt timers and unattended-upgrades before apt operations (#52)
 - Fix `homestak update` aborting after first repo due to `set -e` and `((count++))` from zero (#49)
 
 ### Changed
