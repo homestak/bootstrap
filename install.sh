@@ -244,9 +244,10 @@ wait_for_apt() {
 if [[ "$SKIP_APT_WAIT" == true ]]; then
     log_info "Skipping apt wait (--skip-apt-wait)"
 else
-    log_info "Stopping apt timers to prevent lock contention..."
+    log_info "Stopping apt timers and services to prevent lock contention..."
     systemctl stop apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
     systemctl stop apt-daily.service apt-daily-upgrade.service 2>/dev/null || true
+    systemctl stop unattended-upgrades.service 2>/dev/null || true
 
     # Brief delay to allow services to fully release locks
     sleep 2
@@ -378,15 +379,15 @@ export HOMESTAK_SITE_CONFIG="$HOMESTAK_ETC"
 #
 # Step 4: Install dependencies for each repo
 #
-# Re-check for apt processes — cloud-init or timers may have started new
-# apt operations during repo cloning (Steps 2-3).
-wait_for_apt
 # Clear apt cache to prevent corrupt-cache errors from interrupted operations
 # (e.g., cloud-init apt-get update that was killed or overlapped).
 apt-get clean 2>/dev/null || true
 log_info "Installing dependencies..."
 for repo in "${CODE_REPOS[@]}"; do
     if [[ -f "$HOMESTAK_LIB/$repo/Makefile" ]] && [[ "$repo" != "bootstrap" ]]; then
+        # Wait before EACH repo — apt processes may start between repos
+        # (unattended-upgrades, cloud-init, etc. can spawn new apt-get at any time)
+        wait_for_apt
         log_info "  $repo..."
         make -C "$HOMESTAK_LIB/$repo" install-deps 2>&1 | sed 's/^/    /'
     fi
