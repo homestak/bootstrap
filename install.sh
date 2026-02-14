@@ -381,6 +381,9 @@ export HOMESTAK_SITE_CONFIG="$HOMESTAK_ETC"
 # Re-check for apt processes — cloud-init or timers may have started new
 # apt operations during repo cloning (Steps 2-3).
 wait_for_apt
+# Clear apt cache to prevent corrupt-cache errors from interrupted operations
+# (e.g., cloud-init apt-get update that was killed or overlapped).
+apt-get clean 2>/dev/null || true
 log_info "Installing dependencies..."
 for repo in "${CODE_REPOS[@]}"; do
     if [[ -f "$HOMESTAK_LIB/$repo/Makefile" ]] && [[ "$repo" != "bootstrap" ]]; then
