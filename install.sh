@@ -244,6 +244,15 @@ wait_for_apt() {
 if [[ "$SKIP_APT_WAIT" == true ]]; then
     log_info "Skipping apt wait (--skip-apt-wait)"
 else
+    # Wait for cloud-init to complete before touching apt.
+    # On first boot, cloud-init runs apt-get update as part of its cc_apt_configure
+    # module. If we start our apt operations while cloud-init is still running,
+    # we'll hit the apt lists lock. Waiting here is the clean solution.
+    if command -v cloud-init >/dev/null 2>&1; then
+        log_info "Waiting for cloud-init to complete..."
+        cloud-init status --wait >/dev/null 2>&1 || true
+    fi
+
     log_info "Stopping apt timers and services to prevent lock contention..."
     systemctl stop apt-daily.timer apt-daily-upgrade.timer 2>/dev/null || true
     systemctl stop apt-daily.service apt-daily-upgrade.service 2>/dev/null || true
