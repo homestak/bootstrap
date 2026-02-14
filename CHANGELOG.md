@@ -12,6 +12,7 @@
 - Reroute `pve-setup`, `pve-install`, `user` shortcuts to `homestak scenario --local` (#39)
 
 ### Fixed
+- Fix cloud-init deadlock when install.sh runs inside runcmd (pull mode) — skip `cloud-init status --wait` when cloud-init is already running (#55)
 - Fix apt lock contention during install-deps by dropping `/etc/apt/apt.conf.d/99-homestak-lock-wait` with `DPkg::Lock::Timeout "-1"` for dpkg locks (#52)
 - Fix apt lists lock contention: re-check for apt processes before install-deps phase to handle cloud-init overlap (#52)
 - Simplify apt lock handling: indefinite process wait (no timeout) + system-wide dpkg config replaces per-call `-o DPkg::Lock::Timeout=60` (#52)
