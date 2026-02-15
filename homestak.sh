@@ -565,7 +565,7 @@ images_download() {
     if [[ ${#targets[@]} -eq 0 ]]; then
         echo "Usage: homestak images download <target...> [--version <tag>] [--overwrite] [--publish]"
         echo ""
-        echo "Targets: all, debian-12-custom, debian-13-custom, debian-13-pve, or any .qcow2 filename"
+        echo "Targets: all, debian-12, debian-13, pve-9, or any .qcow2 filename"
         exit 1
     fi
 
