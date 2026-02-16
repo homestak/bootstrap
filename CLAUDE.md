@@ -17,8 +17,7 @@ curl -fsSL .../install.sh | HOMESTAK_USER=homestak bash
 # After bootstrap, use the 'homestak' command
 homestak status
 homestak pve-setup
-homestak scenario user-setup --local
-homestak scenario pve-setup --local
+homestak user
 ```
 
 ## What It Does
@@ -60,11 +59,13 @@ After running install.sh:
 │   └── homestak/           # site-config (configuration)
 │       ├── site.yaml
 │       ├── secrets.yaml
+│       ├── defs/
 │       ├── hosts/
 │       ├── nodes/
 │       ├── postures/
-│       ├── envs/
-│       └── vms/
+│       ├── specs/
+│       ├── presets/
+│       └── manifests/
 └── lib/
     └── homestak/           # code repos
         ├── bootstrap/
@@ -156,7 +157,7 @@ The `spec` command fetches VM specifications from the server:
 homestak spec get --server https://father:44443 --identity dev1
 
 # Fetch spec using environment variables (automated path)
-HOMESTAK_SPEC_SERVER=https://father:44443 HOMESTAK_IDENTITY=dev1 homestak spec get
+HOMESTAK_SERVER=https://father:44443 HOMESTAK_IDENTITY=dev1 homestak spec get
 ```
 
 **Exit codes (get):**
