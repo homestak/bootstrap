@@ -21,17 +21,8 @@ homestak status
 # Decrypt secrets (requires age key)
 homestak secrets decrypt
 
-# Configure PVE
-homestak pve-setup
-
-# Create a user
-homestak playbook user -e local_user=myuser
-
-# Run a scenario
-homestak scenario pve-setup --local
-
-# Change network settings
-homestak network -e pve_network_tasks='["static"]' -e pve_new_ip=198.51.100.100
+# Configure PVE host
+sudo homestak pve-setup
 
 # Install optional modules
 homestak install packer
@@ -60,18 +51,20 @@ curl ... | HOMESTAK_USER=homestak HOMESTAK_APPLY=pve-setup bash
 
 ## What Gets Installed
 
-**Core modules:**
-- `/opt/homestak/site-config/` - Site-specific secrets and configuration
-- `/opt/homestak/ansible/` - Ansible playbooks and roles
-- `/opt/homestak/iac-driver/` - Orchestration engine
-- `/opt/homestak/tofu/` - VM provisioning with OpenTofu
+**Code repos** (`/usr/local/lib/homestak/`):
+- `bootstrap/` - CLI and installer
+- `ansible/` - Playbooks and roles
+- `iac-driver/` - Orchestration engine
+- `tofu/` - VM provisioning with OpenTofu
+
+**Configuration** (`/usr/local/etc/homestak/`):
+- `site-config/` contents - secrets, hosts, nodes, manifests
 
 **CLI:**
-- `/opt/homestak/homestak` - Unified CLI
-- `/usr/local/bin/homestak` - Symlink for PATH access
+- `/usr/local/bin/homestak` - Symlink to `bootstrap/homestak.sh`
 
 **Optional:**
-- `/opt/homestak/packer/` - Image building (install via `homestak install packer`)
+- `packer/` - Image building (install via `homestak install packer`)
 
 ## Requirements
 
