@@ -408,6 +408,12 @@ for repo in "${CODE_REPOS[@]}"; do
         make -C "$HOMESTAK_LIB/$repo" install-deps 2>&1 | sed 's/^/    /'
     fi
 done
+# site-config has its own install-deps (age, sops) — run separately
+if [[ -f "$HOMESTAK_ETC/Makefile" ]]; then
+    wait_for_apt
+    log_info "  site-config..."
+    make -C "$HOMESTAK_ETC" install-deps 2>&1 | sed 's/^/    /'
+fi
 
 #
 # Step 5: Install homestak CLI (symlink to bootstrap/homestak.sh)
