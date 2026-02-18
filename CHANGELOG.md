@@ -4,6 +4,7 @@
 
 ### Features
 - Add `gh` (GitHub CLI) to `make install-deps` — required by `homestak images download`
+- Run `make install-deps` for site-config during bootstrap — installs `age` and `sops` automatically (homestak-dev#266)
 - Add `--branch <name>` flag to `homestak update` for switching repos to a named branch (#49)
 - Add `tests/test-install-remote.sh` — bootstrap install integration test migrated from iac-driver (#45)
 
