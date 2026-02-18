@@ -3,6 +3,10 @@
 ## Unreleased
 
 ### Features
+- Support image downloads without gh authentication (#68)
+  - Adds curl + GitHub REST API fallback for `images list` and `images download`
+  - Uses gh when authenticated (preferred), falls back to curl for public repos
+  - Rate limit detection with clear error message and remediation guidance
 - Add `gh` (GitHub CLI) to `make install-deps` — required by `homestak images download`
 - Run `make install-deps` for site-config during bootstrap — installs `age` and `sops` automatically (homestak-dev#266)
 - Add `--branch <name>` flag to `homestak update` for switching repos to a named branch (#49)
