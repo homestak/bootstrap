@@ -498,6 +498,124 @@ site_init() {
 # Images directory
 IMAGES_DIR="/var/tmp/homestak/images"
 PVE_ISO_DIR="/var/lib/vz/template/iso"
+PACKER_REPO="homestak-dev/packer"
+
+# Check if gh CLI is authenticated (cached for session)
+_GH_AUTH_CHECKED=""
+_GH_AUTH_OK=""
+gh_is_authenticated() {
+    if [[ -z "$_GH_AUTH_CHECKED" ]]; then
+        _GH_AUTH_CHECKED=1
+        if command -v gh &>/dev/null && gh auth status &>/dev/null; then
+            _GH_AUTH_OK=1
+        else
+            _GH_AUTH_OK=""
+        fi
+    fi
+    [[ -n "$_GH_AUTH_OK" ]]
+}
+
+# Get release asset names via GitHub REST API (no auth required for public repos)
+# Args: version (tag name, or "latest")
+# Output: newline-separated asset names on stdout
+# Returns: 0 on success, 1 on error
+get_release_asset_names() {
+    local version="$1"
+    local api_url
+
+    if [[ "$version" == "latest" ]]; then
+        api_url="https://api.github.com/repos/$PACKER_REPO/releases/latest"
+    else
+        api_url="https://api.github.com/repos/$PACKER_REPO/releases/tags/$version"
+    fi
+
+    local response headers
+    # Fetch with headers to check rate limit
+    response=$(curl -sS -D /dev/stderr "$api_url" 2>/tmp/gh_api_headers) || {
+        echo -e "${RED}Failed to reach GitHub API${NC}" >&2
+        return 1
+    }
+
+    # Check rate limit from headers
+    local remaining
+    remaining=$(grep -i 'x-ratelimit-remaining:' /tmp/gh_api_headers 2>/dev/null | tr -d '\r' | awk '{print $2}')
+    if [[ -n "$remaining" && "$remaining" -eq 0 ]]; then
+        echo -e "${RED}GitHub API rate limit reached (60/hr for unauthenticated requests).${NC}" >&2
+        echo -e "${YELLOW}Run 'gh auth login' for higher limits, or wait and retry.${NC}" >&2
+        rm -f /tmp/gh_api_headers
+        return 1
+    fi
+    rm -f /tmp/gh_api_headers
+
+    # Check for API error (e.g., 404 for missing release)
+    if echo "$response" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if 'assets' in d else 1)" 2>/dev/null; then
+        echo "$response" | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+for asset in data.get('assets', []):
+    print(asset['name'])
+"
+    else
+        echo -e "${RED}Release not found: $version${NC}" >&2
+        return 1
+    fi
+}
+
+# Get download URL for a specific asset via GitHub REST API
+# Args: version, asset_name
+# Output: browser_download_url on stdout
+get_release_asset_url() {
+    local version="$1"
+    local asset_name="$2"
+    local api_url
+
+    if [[ "$version" == "latest" ]]; then
+        api_url="https://api.github.com/repos/$PACKER_REPO/releases/latest"
+    else
+        api_url="https://api.github.com/repos/$PACKER_REPO/releases/tags/$version"
+    fi
+
+    curl -sS "$api_url" 2>/dev/null | python3 -c "
+import sys, json
+data = json.load(sys.stdin)
+for asset in data.get('assets', []):
+    if asset['name'] == '$asset_name':
+        print(asset['browser_download_url'])
+        sys.exit(0)
+sys.exit(1)
+" 2>/dev/null
+}
+
+# Get release asset names (try gh first, fall back to curl)
+# Args: version
+# Output: newline-separated asset names on stdout
+get_assets() {
+    local version="$1"
+    if gh_is_authenticated; then
+        gh release view "$version" --repo "$PACKER_REPO" --json assets --jq '.assets[].name' 2>/dev/null
+    else
+        get_release_asset_names "$version"
+    fi
+}
+
+# Download a release asset (try gh first, fall back to curl)
+# Args: version, asset_name, output_dir
+download_asset() {
+    local version="$1"
+    local asset_name="$2"
+    local output_dir="$3"
+    local output_file="$output_dir/$asset_name"
+
+    if gh_is_authenticated; then
+        gh release download "$version" --repo "$PACKER_REPO" \
+            --pattern "$asset_name" --dir "$output_dir" --clobber 2>/dev/null && return 0
+    fi
+
+    # Fall back to curl
+    local url
+    url=$(get_release_asset_url "$version" "$asset_name") || return 1
+    curl -L -C - -o "$output_file" "$url"
+}
 
 images_list() {
     local version="latest"
@@ -512,7 +630,7 @@ images_list() {
     echo ""
 
     local assets
-    assets=$(gh release view "$version" --repo "homestak-dev/packer" --json assets --jq '.assets[].name' 2>/dev/null)
+    assets=$(get_assets "$version")
 
     if [[ -z "$assets" ]]; then
         echo "No images found in release '$version'"
@@ -575,7 +693,7 @@ images_download() {
 
     # Get list of available assets
     local assets
-    assets=$(gh release view "$version" --repo "homestak-dev/packer" --json assets --jq '.assets[].name' 2>/dev/null)
+    assets=$(get_assets "$version")
 
     if [[ -z "$assets" ]]; then
         echo -e "${RED}No release found: $version${NC}"
@@ -624,18 +742,7 @@ images_download() {
                     echo "    Skipping $part (exists)"
                 else
                     echo "    Downloading $part..."
-                    if ! gh release download "$version" --repo "homestak-dev/packer" \
-                        --pattern "$part" --dir "$IMAGES_DIR" --clobber 2>/dev/null; then
-                        # Try curl with resume
-                        local url
-                        url=$(gh release view "$version" --repo "homestak-dev/packer" \
-                            --json assets --jq ".assets[] | select(.name==\"$part\") | .url" 2>/dev/null)
-                        if [[ -n "$url" ]]; then
-                            curl -L -C - -o "$part_file" "$url" || all_parts_ok=false
-                        else
-                            all_parts_ok=false
-                        fi
-                    fi
+                    download_asset "$version" "$part" "$IMAGES_DIR" || all_parts_ok=false
                 fi
             done <<< "$parts"
 
@@ -650,16 +757,7 @@ images_download() {
             fi
         elif echo "$assets" | grep -q "^${target}$"; then
             echo "  Downloading $target..."
-            gh release download "$version" --repo "homestak-dev/packer" \
-                --pattern "$target" --dir "$IMAGES_DIR" --clobber 2>/dev/null || {
-                # Fallback to curl with resume
-                local url
-                url=$(gh release view "$version" --repo "homestak-dev/packer" \
-                    --json assets --jq ".assets[] | select(.name==\"$target\") | .url" 2>/dev/null)
-                if [[ -n "$url" ]]; then
-                    curl -L -C - -o "$output_file" "$url"
-                fi
-            }
+            download_asset "$version" "$target" "$IMAGES_DIR"
             echo "    Downloaded: $output_file"
         else
             echo -e "${YELLOW}  Not found in release: $target${NC}"
@@ -668,8 +766,7 @@ images_download() {
         # Download checksum if available
         local checksum="${target}.sha256"
         if echo "$assets" | grep -q "^${checksum}$"; then
-            gh release download "$version" --repo "homestak-dev/packer" \
-                --pattern "$checksum" --dir "$IMAGES_DIR" --clobber 2>/dev/null || true
+            download_asset "$version" "$checksum" "$IMAGES_DIR" || true
         fi
     done
 
