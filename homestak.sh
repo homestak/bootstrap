@@ -523,11 +523,9 @@ get_release_asset_names() {
     local version="$1"
     local api_url
 
-    if [[ "$version" == "latest" ]]; then
-        api_url="https://api.github.com/repos/$PACKER_REPO/releases/latest"
-    else
-        api_url="https://api.github.com/repos/$PACKER_REPO/releases/tags/$version"
-    fi
+    # Always use /releases/tags/ — "latest" is a tag name, not GitHub's
+    # /releases/latest endpoint (which returns the newest numbered release)
+    api_url="https://api.github.com/repos/$PACKER_REPO/releases/tags/$version"
 
     local response headers
     # Fetch with headers to check rate limit
@@ -569,11 +567,9 @@ get_release_asset_url() {
     local asset_name="$2"
     local api_url
 
-    if [[ "$version" == "latest" ]]; then
-        api_url="https://api.github.com/repos/$PACKER_REPO/releases/latest"
-    else
-        api_url="https://api.github.com/repos/$PACKER_REPO/releases/tags/$version"
-    fi
+    # Always use /releases/tags/ — "latest" is a tag name, not GitHub's
+    # /releases/latest endpoint (which returns the newest numbered release)
+    api_url="https://api.github.com/repos/$PACKER_REPO/releases/tags/$version"
 
     curl -sS "$api_url" 2>/dev/null | python3 -c "
 import sys, json
