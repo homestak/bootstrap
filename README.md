@@ -6,7 +6,7 @@ One-command setup for Proxmox infrastructure-as-code.
 
 ```bash
 # 1. Bootstrap
-curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh | bash
+curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh | sudo bash
 
 # 2. Configure site defaults for your network
 sudo vi /usr/local/etc/homestak/site.yaml

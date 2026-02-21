@@ -720,8 +720,7 @@ images_download() {
 
         # Check if exists
         if [[ -f "$output_file" && "$overwrite" != "true" ]]; then
-            echo -e "${RED}File exists: $output_file${NC}"
-            echo "Use --overwrite to replace"
+            echo -e "${YELLOW}  Cached: $output_file${NC}"
             continue
         fi
 
@@ -826,8 +825,7 @@ images_publish() {
         fi
 
         if [[ -f "$dest_file" && "$overwrite" != "true" ]]; then
-            echo -e "${RED}  Exists: $dest_file${NC}"
-            echo "  Use --overwrite to replace"
+            echo -e "${YELLOW}  Published: $dest_file${NC}"
             continue
         fi
 
