@@ -384,6 +384,7 @@ if [[ "$SKIP_SITE_CONFIG" != "true" ]] && [[ "$SKIP_SITE_CONFIG" != "1" ]]; then
     log_info "Setting up site-config..."
     if [[ -f "$HOMESTAK_ETC/Makefile" ]]; then
         make -C "$HOMESTAK_ETC" setup 2>&1 | sed 's/^/    /' || true
+        make -C "$HOMESTAK_ETC" init-secrets 2>&1 | sed 's/^/    /' || true
     fi
 else
     log_info "Skipping site-config setup (HTTP source)"
