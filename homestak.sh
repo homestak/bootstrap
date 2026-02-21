@@ -384,6 +384,11 @@ show_status() {
 }
 
 site_init() {
+    if [[ $EUID -ne 0 ]]; then
+        echo -e "${RED}site-init requires root privileges. Use: sudo homestak site-init${NC}"
+        exit 1
+    fi
+
     local force=false
     while [[ $# -gt 0 ]]; do
         case "$1" in
