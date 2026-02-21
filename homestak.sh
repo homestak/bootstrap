@@ -611,7 +611,7 @@ download_asset() {
     # Fall back to curl
     local url
     url=$(get_release_asset_url "$version" "$asset_name") || return 1
-    curl -L -C - -o "$output_file" "$url"
+    curl -# -L -C - -o "$output_file" "$url"
 }
 
 images_list() {
