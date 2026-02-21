@@ -5,24 +5,44 @@ One-command setup for Proxmox infrastructure-as-code.
 ## Quick Start
 
 ```bash
+# 1. Bootstrap
 curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh | bash
+
+# 2. Configure site defaults for your network
+sudo vi /usr/local/etc/homestak/site.yaml
+# Required: defaults.gateway, defaults.dns_servers
+# Optional: defaults.domain (e.g., home.arpa)
+
+# 3. Initialize site configuration (generates host config, SSH key)
+sudo homestak site-init
+
+# 4. Install PVE + configure host (generates API token, signing key, node config)
+# Note: On fresh Debian, pve-setup reboots after kernel install.
+#       Re-run the same command after reboot to complete setup.
+sudo homestak pve-setup
+
+# 5. Download and publish packer images
+sudo homestak images download all --publish
 ```
 
-This installs the `homestak` command for managing your Proxmox infrastructure.
+Your host is now ready to provision VMs:
+
+```bash
+cd /usr/local/lib/homestak/iac-driver
+sudo ./run.sh manifest apply -M n1-push -H $(hostname -s) --verbose
+```
 
 ## Usage
 
-After bootstrap:
-
 ```bash
 # Check installation
-homestak status
-
-# Decrypt secrets (requires age key)
-homestak secrets decrypt
+sudo homestak status
 
 # Configure PVE host
 sudo homestak pve-setup
+
+# Download and publish packer images
+sudo homestak images download all --publish
 
 # Install optional modules
 homestak install packer

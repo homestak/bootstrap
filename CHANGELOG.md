@@ -3,6 +3,7 @@
 ## Unreleased
 
 ### Features
+- Use `make init-secrets` in `site_init()` and `install.sh` — supports both `.enc` decrypt and `.example` copy (#77)
 - Support image downloads without gh authentication (#68)
   - Adds curl + GitHub REST API fallback for `images list` and `images download`
   - Uses gh when authenticated (preferred), falls back to curl for public repos
@@ -18,6 +19,7 @@
 - Reroute `pve-setup`, `pve-install`, `user` shortcuts to `homestak scenario --local` (#39)
 
 ### Fixed
+- Require root for `site-init` command — prevents silent permission denied on FHS paths (#73)
 - Fix cloud-init deadlock when install.sh runs inside runcmd (pull mode) — skip `cloud-init status --wait` when cloud-init is already running (#55)
 - Fix apt lock contention during install-deps by dropping `/etc/apt/apt.conf.d/99-homestak-lock-wait` with `DPkg::Lock::Timeout "-1"` for dpkg locks (#52)
 - Fix apt lists lock contention: re-check for apt processes before install-deps phase to handle cloud-init overlap (#52)
