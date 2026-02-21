@@ -447,18 +447,14 @@ site_init() {
         echo "  SSH key exists: $ssh_pub"
     fi
 
-    # Step 4: Decrypt secrets if encrypted file exists
-    if [[ -f "$HOMESTAK_ETC/secrets.yaml.enc" ]]; then
-        if [[ -f "$HOMESTAK_ETC/secrets.yaml" ]]; then
-            echo "  Secrets already decrypted"
-        else
-            echo "  Decrypting secrets..."
-            make -C "$HOMESTAK_ETC" decrypt 2>&1 | sed 's/^/    /' || {
-                echo -e "${YELLOW}  Warning: Could not decrypt secrets (age key may be missing)${NC}"
-            }
-        fi
+    # Step 4: Initialize secrets (decrypt .enc or copy .example)
+    if [[ -f "$HOMESTAK_ETC/secrets.yaml" ]]; then
+        echo "  Secrets already initialized"
     else
-        echo "  No encrypted secrets found"
+        echo "  Initializing secrets..."
+        make -C "$HOMESTAK_ETC" init-secrets 2>&1 | sed 's/^/    /' || {
+            echo -e "${YELLOW}  Warning: Could not initialize secrets${NC}"
+        }
     fi
 
     # Step 5: Add SSH key to secrets.yaml if not already present

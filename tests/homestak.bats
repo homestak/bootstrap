@@ -180,10 +180,10 @@ load_functions() {
 # site-init tests
 #
 
-@test "site-init unknown option fails" {
-    run "$HOMESTAK_SH" site-init --badoption
+@test "site-init requires root" {
+    run "$HOMESTAK_SH" site-init
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "Unknown option" ]]
+    [[ "$output" =~ "requires root" ]]
 }
 
 #
