@@ -18,6 +18,9 @@
 - Remove `network` shortcut (#39)
 - Reroute `pve-setup`, `pve-install`, `user` shortcuts to `homestak scenario --local` (#39)
 
+### Changed
+- Use yellow for cached/published images instead of red (not errors)
+
 ### Fixed
 - Require root for `site-init` command — prevents silent permission denied on FHS paths (#73)
 - Fix cloud-init deadlock when install.sh runs inside runcmd (pull mode) — skip `cloud-init status --wait` when cloud-init is already running (#55)
