@@ -92,8 +92,8 @@ Examples:
   curl -fsSL .../install.sh | HOMESTAK_REF=v0.37 bash
 
   # Bootstrap from controller (pull mode first boot)
-  curl -fsSk https://father:44443/bootstrap.git/install.sh | \
-  HOMESTAK_SOURCE=https://father:44443 HOMESTAK_INSECURE=1 bash
+  curl -fsSk https://srv1:44443/bootstrap.git/install.sh | \
+  HOMESTAK_SOURCE=https://srv1:44443 HOMESTAK_INSECURE=1 bash
 
   # Air-gapped installation
   ./install.sh --source file:///mnt/usb/homestak --ref v0.37

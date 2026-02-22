@@ -80,8 +80,8 @@ usage() {
     echo "  homestak update --version v0.24"
     echo "  homestak update --branch sprint/my-feature"
     echo "  homestak preflight"
-    echo "  homestak preflight mother"
-    echo "  homestak spec get --server https://father:44443 --identity dev1"
+    echo "  homestak preflight srv2"
+    echo "  homestak spec get --server https://srv1:44443 --identity dev1"
     echo ""
     exit 1
 }
