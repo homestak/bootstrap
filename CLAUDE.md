@@ -119,7 +119,7 @@ homestak user                      # User management
 FHS installations (`/usr/local/lib/homestak/`) are root-owned, so scenario execution requires sudo:
 
 ```bash
-sudo homestak scenario push-vm-roundtrip --host father
+sudo homestak scenario push-vm-roundtrip --host srv1
 sudo homestak pve-setup
 ```
 
@@ -158,13 +158,13 @@ The `spec` command fetches VM specifications from the server:
 
 ```bash
 # Fetch spec from server (manual testing)
-homestak spec get --server https://father:44443 --identity dev1
+homestak spec get --server https://srv1:44443 --identity dev1
 
 # Identity defaults to hostname if omitted
-homestak spec get --server https://father:44443
+homestak spec get --server https://srv1:44443
 
 # Fetch spec using environment variables (automated path)
-HOMESTAK_SERVER=https://father:44443 homestak spec get
+HOMESTAK_SERVER=https://srv1:44443 homestak spec get
 ```
 
 **Exit codes (get):**
@@ -186,7 +186,7 @@ Requires `python3-yaml` for get.
 | `HOMESTAK_APPLY` | (none) | Task to run after bootstrap (pve-setup, pve-install, user) |
 | `HOMESTAK_LIB` | /usr/local/lib/homestak | Code repos directory (for development) |
 | `HOMESTAK_ETC` | /usr/local/etc/homestak | Site-config directory (for development) |
-| `HOMESTAK_SERVER` | (none) | Spec server URL (e.g., `https://father:44443`) |
+| `HOMESTAK_SERVER` | (none) | Spec server URL (e.g., `https://srv1:44443`) |
 | `HOMESTAK_TOKEN` | (none) | HMAC-signed provisioning token (minted by ConfigResolver) |
 | `HOMESTAK_SOURCE` | (none) | Repo source URL for bootstrap (e.g., server URL for pull mode) |
 | `HOMESTAK_REF` | master | Git ref for bootstrap clones (e.g., `_working` for server repos) |
@@ -199,7 +199,7 @@ The create → config flow enables automatic spec discovery for newly provisione
 ### Overview
 
 ```
-Driver (father)                  VM (test)
+Driver (srv1)                  VM (test)
 ┌─────────────────┐              ┌─────────────────┐
 │ ./run.sh server │◄─────────────│ homestak spec   │
 │ start (daemon)  │   GET /spec  │ get             │
@@ -239,7 +239,7 @@ Driver (father)                  VM (test)
 **Driver (site.yaml)**:
 ```yaml
 defaults:
-  spec_server: "https://father:44443"
+  spec_server: "https://srv1:44443"
 ```
 
 **Server**:
@@ -251,10 +251,10 @@ cd /usr/local/lib/homestak/iac-driver && ./run.sh server start
 **Validation Scenarios**:
 ```bash
 # Test create → specify flow (push verification)
-cd /usr/local/lib/homestak/iac-driver && ./run.sh scenario run push-vm-roundtrip -H father
+cd /usr/local/lib/homestak/iac-driver && ./run.sh scenario run push-vm-roundtrip -H srv1
 
 # Test create → config flow (pull verification, v0.48+)
-cd /usr/local/lib/homestak/iac-driver && ./run.sh scenario run pull-vm-roundtrip -H father
+cd /usr/local/lib/homestak/iac-driver && ./run.sh scenario run pull-vm-roundtrip -H srv1
 ```
 
 ### Authentication

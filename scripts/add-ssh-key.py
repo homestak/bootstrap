@@ -14,7 +14,7 @@ def add_ssh_key(secrets_file: str, key_id: str, pub_key: str) -> bool:
 
     Args:
         secrets_file: Path to secrets.yaml
-        key_id: Key identifier (e.g., root@father)
+        key_id: Key identifier (e.g., root@srv1)
         pub_key: Full public key string
 
     Returns:
