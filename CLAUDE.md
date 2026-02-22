@@ -25,11 +25,12 @@ homestak user
 1. **Installs prerequisites** - git, make (minimal)
 2. **Clones code repos** - bootstrap, ansible, iac-driver, tofu to `/usr/local/lib/homestak/`
 3. **Clones site-config** - to `/usr/local/etc/homestak/`
-4. **Sets up site-config** - runs `make setup` for secrets management
-5. **Runs `make install-deps`** - each repo installs its own dependencies
-6. **Installs `homestak` CLI** - symlink to `bootstrap/homestak.sh`
-7. **Optionally creates user** - via `HOMESTAK_USER` env var
-8. **Optionally runs initial task** - via `HOMESTAK_APPLY` env var
+4. **Sets up site-config** - runs `make setup` and `make install-deps` (installs age, sops)
+5. **Initializes secrets** - runs `make init-secrets` (decrypts `.enc` or copies `.example` template)
+6. **Runs `make install-deps`** - each code repo installs its own dependencies
+7. **Installs `homestak` CLI** - symlink to `bootstrap/homestak.sh`
+8. **Optionally creates user** - via `HOMESTAK_USER` env var
+9. **Optionally runs initial task** - via `HOMESTAK_APPLY` env var
 
 ## Project Structure
 
@@ -118,11 +119,13 @@ homestak user                      # User management
 FHS installations (`/usr/local/lib/homestak/`) are root-owned, so scenario execution requires sudo:
 
 ```bash
-sudo homestak scenario vm-roundtrip --host father
+sudo homestak scenario push-vm-roundtrip --host father
 sudo homestak pve-setup
 ```
 
 Commands that only read configuration (status, preflight, images list) work without sudo.
+
+`site-init` requires root (enforced at runtime) because it writes to FHS paths under `/usr/local/etc/homestak/`.
 
 ### Site Initialization
 
@@ -131,7 +134,7 @@ The `site-init` command prepares a fresh system for homestak workflows:
 1. Generates `hosts/<hostname>.yaml` from system info
 2. Generates `nodes/<hostname>.yaml` if PVE is installed
 3. Creates SSH key (ed25519) if none exists
-4. Decrypts secrets if encrypted file exists
+4. Initializes secrets via `make init-secrets` (decrypts `.enc` if present, or copies `.example` template)
 
 ### Image Management
 
@@ -141,6 +144,7 @@ The `images` command manages packer images from GitHub releases:
 - **Publish location**: `/var/lib/vz/template/iso/` (PVE storage)
 - **Split files**: Automatically reassembles `*.partaa`, `*.partab`, etc.
 - **Resume support**: Uses `curl -C -` for interrupted downloads
+- **No `gh` auth required**: Falls back to curl + GitHub REST API for public repos when `gh` CLI is not authenticated. Uses `gh` when available (preferred) for higher rate limits.
 
 Typical workflow:
 ```bash
@@ -156,8 +160,11 @@ The `spec` command fetches VM specifications from the server:
 # Fetch spec from server (manual testing)
 homestak spec get --server https://father:44443 --identity dev1
 
+# Identity defaults to hostname if omitted
+homestak spec get --server https://father:44443
+
 # Fetch spec using environment variables (automated path)
-HOMESTAK_SERVER=https://father:44443 HOMESTAK_IDENTITY=dev1 homestak spec get
+HOMESTAK_SERVER=https://father:44443 homestak spec get
 ```
 
 **Exit codes (get):**
@@ -267,7 +274,7 @@ Each repo has a `Makefile` with an `install-deps` target:
 | tofu | tofu (from official OpenTofu repo) |
 | packer | packer (optional, installed via `homestak install packer`) |
 
-Bootstrap installs only `git` and `make`, then delegates to each repo's Makefile.
+Bootstrap installs `git`, `make`, and `gh` (GitHub CLI), then delegates to each repo's Makefile.
 
 ### Core vs Optional Modules
 
