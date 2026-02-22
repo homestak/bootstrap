@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.50 - 2026-02-22
+
 ### Features
 - Use `make init-secrets` in `site_init()` and `install.sh` — supports both `.enc` decrypt and `.example` copy (#77)
 - Support image downloads without gh authentication (#68)
