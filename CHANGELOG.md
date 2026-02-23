@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Removed
+- Remove `/opt/homestak` legacy path fallback in `spec_client.py` — FHS path is the only supported layout since v0.24 (#72)
+
 ## v0.50 - 2026-02-22
 
 ### Features

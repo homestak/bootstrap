@@ -51,18 +51,8 @@ def discover_state_path() -> Path:
     if env_path := os.environ.get("HOMESTAK_ETC"):
         return Path(env_path) / "state"
 
-    # Check FHS path (preferred for bootstrap installations)
-    fhs_path = Path("/usr/local/etc/homestak/state")
-    if fhs_path.parent.is_dir():
-        return fhs_path
-
-    # Check legacy path
-    legacy_path = Path("/opt/homestak/site-config/state")
-    if legacy_path.parent.is_dir():
-        return legacy_path
-
-    # Default to FHS path (will be created)
-    return fhs_path
+    # FHS path (standard for bootstrap installations)
+    return Path("/usr/local/etc/homestak/state")
 
 
 class SpecClient:
