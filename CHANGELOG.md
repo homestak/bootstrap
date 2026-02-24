@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Changed
+- `update --branch` falls back to master when branch not found — counts as success instead of failure (#53)
+
 ### Removed
 - Remove `/opt/homestak` legacy path fallback in `spec_client.py` — FHS path is the only supported layout since v0.24 (#72)
 

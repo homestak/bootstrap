@@ -243,7 +243,7 @@ update_repos() {
                 if git -C "$target_dir" ls-remote --heads origin "$branch" 2>/dev/null | grep -q .; then
                     printf "  %-12s %s\n" "$repo" "branch $branch available"
                 else
-                    printf "  %-12s %s\n" "$repo" "(branch $branch not found)"
+                    printf "  %-12s %s\n" "$repo" "master (branch not found, would use master)"
                 fi
                 continue
             fi
@@ -291,10 +291,17 @@ update_repos() {
                 ((fail_count++)) || true
             fi
         elif [[ -n "$branch" ]]; then
-            # Switch to named branch
+            # Switch to named branch (fall back to master if not found)
             if ! git -C "$target_dir" ls-remote --heads origin "$branch" 2>/dev/null | grep -q .; then
-                echo -e "${YELLOW}branch not found${NC}"
-                ((fail_count++)) || true
+                # Branch not found — fall back to master
+                if git -C "$target_dir" checkout -q master 2>/dev/null && \
+                   git -C "$target_dir" pull -q origin master 2>/dev/null; then
+                    echo -e "master ${YELLOW}(branch not found, using master)${NC}"
+                    ((success_count++)) || true
+                else
+                    echo -e "${RED}fallback to master failed${NC}"
+                    ((fail_count++)) || true
+                fi
                 continue
             fi
             # Check if local branch already exists
