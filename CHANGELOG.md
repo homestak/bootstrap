@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.51 - 2026-02-28
+
 ### Changed
 - `update --branch` falls back to master when branch not found — counts as success instead of failure (#53)
 
