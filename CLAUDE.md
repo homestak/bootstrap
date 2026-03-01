@@ -22,14 +22,14 @@ homestak user
 
 ## What It Does
 
-1. **Installs prerequisites** - git, make (minimal)
-2. **Clones code repos** - bootstrap, ansible, iac-driver, tofu to `/usr/local/lib/homestak/`
-3. **Clones site-config** - to `/usr/local/etc/homestak/`
-4. **Sets up site-config** - runs `make setup` and `make install-deps` (installs age, sops)
-5. **Initializes secrets** - runs `make init-secrets` (decrypts `.enc` or copies `.example` template)
-6. **Runs `make install-deps`** - each code repo installs its own dependencies
-7. **Installs `homestak` CLI** - symlink to `bootstrap/homestak.sh`
-8. **Optionally creates user** - via `HOMESTAK_USER` env var
+1. **Creates `homestak` user** - dedicated user with sudo privileges
+2. **Installs prerequisites** - git, make (minimal)
+3. **Clones code repos** - bootstrap, ansible, iac-driver, tofu to `~homestak/lib/`
+4. **Clones site-config** - to `~homestak/etc/`
+5. **Sets up site-config** - runs `make setup` and `make install-deps` (installs age, sops)
+6. **Initializes secrets** - runs `make init-secrets` (decrypts `.enc` or copies `.example` template)
+7. **Runs `make install-deps`** - each code repo installs its own dependencies
+8. **Installs `homestak` CLI** - symlink to `~homestak/bin/homestak`
 9. **Optionally runs initial task** - via `HOMESTAK_APPLY` env var
 
 ## Project Structure
@@ -48,34 +48,34 @@ bootstrap/
 └── README.md       # User-facing documentation
 ```
 
-## Installed Structure (FHS-compliant)
+## Installed Structure
 
 After running install.sh:
 
 ```
-/usr/local/
+~homestak/
 ├── bin/
-│   └── homestak → ../lib/homestak/bootstrap/homestak.sh
-├── etc/
-│   └── homestak/           # site-config (configuration)
-│       ├── site.yaml
-│       ├── secrets.yaml
-│       ├── defs/
-│       ├── hosts/
-│       ├── nodes/
-│       ├── postures/
-│       ├── specs/
-│       ├── presets/
-│       └── manifests/
-└── lib/
-    └── homestak/           # code repos
-        ├── bootstrap/
-        │   ├── homestak.sh
-        │   └── install.sh
-        ├── ansible/
-        ├── iac-driver/
-        ├── tofu/
-        └── packer/         # (optional)
+│   └── homestak → ../lib/bootstrap/homestak.sh
+├── etc/                    # site-config (configuration)
+│   ├── site.yaml
+│   ├── secrets.yaml
+│   ├── defs/
+│   ├── hosts/
+│   ├── nodes/
+│   ├── postures/
+│   ├── specs/
+│   ├── presets/
+│   └── manifests/
+├── lib/                    # code repos
+│   ├── bootstrap/
+│   │   ├── homestak.sh
+│   │   └── install.sh
+│   ├── ansible/
+│   ├── iac-driver/
+│   ├── tofu/
+│   └── packer/             # (optional)
+├── log/
+└── cache/
 ```
 
 ## homestak CLI
@@ -116,16 +116,14 @@ homestak user                      # User management
 
 ### Execution Requirements
 
-FHS installations (`/usr/local/lib/homestak/`) are root-owned, so scenario execution requires sudo:
+All files are owned by the `homestak` user, so most commands run without sudo:
 
 ```bash
-sudo homestak scenario push-vm-roundtrip --host srv1
-sudo homestak pve-setup
+homestak scenario push-vm-roundtrip --host srv1
+homestak pve-setup
 ```
 
-Commands that only read configuration (status, preflight, images list) work without sudo.
-
-`site-init` requires root (enforced at runtime) because it writes to FHS paths under `/usr/local/etc/homestak/`.
+Commands that need root (e.g., `pveum`, `apt`, `systemctl`) use the `as_root` helper internally.
 
 ### Site Initialization
 
@@ -175,17 +173,16 @@ HOMESTAK_SERVER=https://srv1:44443 homestak spec get
 
 Requires `python3-yaml` for get.
 
-**Schema validation** has moved to site-config: `cd /usr/local/etc/homestak && make validate`
+**Schema validation** has moved to site-config: `cd ~/etc && make validate`
 
 ## Environment Variables
 
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `HOMESTAK_BRANCH` | master | Git branch to use for all repos |
-| `HOMESTAK_USER` | (none) | Create this user with sudo privileges |
-| `HOMESTAK_APPLY` | (none) | Task to run after bootstrap (pve-setup, pve-install, user) |
-| `HOMESTAK_LIB` | /usr/local/lib/homestak | Code repos directory (for development) |
-| `HOMESTAK_ETC` | /usr/local/etc/homestak | Site-config directory (for development) |
+| `HOMESTAK_APPLY` | (none) | Task to run after bootstrap (pve-setup, pve-install, user, config) |
+| `HOMESTAK_LIB` | ~/lib | Code repos directory (for development) |
+| `HOMESTAK_ETC` | ~/etc | Site-config directory (for development) |
 | `HOMESTAK_SERVER` | (none) | Spec server URL (e.g., `https://srv1:44443`) |
 | `HOMESTAK_TOKEN` | (none) | HMAC-signed provisioning token (minted by ConfigResolver) |
 | `HOMESTAK_SOURCE` | (none) | Repo source URL for bootstrap (e.g., server URL for pull mode) |
@@ -207,8 +204,7 @@ Driver (srv1)                  VM (test)
 └─────────────────┘              └─────────────────┘
                                         │
                                         ▼
-                                 /usr/local/etc/
-                                 homestak/state/
+                                 ~/etc/state/
                                  spec.yaml
 ```
 
@@ -245,16 +241,16 @@ defaults:
 **Server**:
 ```bash
 # Start on driver (iac-driver)
-cd /usr/local/lib/homestak/iac-driver && ./run.sh server start
+cd ~/lib/iac-driver && ./run.sh server start
 ```
 
 **Validation Scenarios**:
 ```bash
 # Test create → specify flow (push verification)
-cd /usr/local/lib/homestak/iac-driver && ./run.sh scenario run push-vm-roundtrip -H srv1
+cd ~/lib/iac-driver && ./run.sh scenario run push-vm-roundtrip -H srv1
 
 # Test create → config flow (pull verification, v0.48+)
-cd /usr/local/lib/homestak/iac-driver && ./run.sh scenario run pull-vm-roundtrip -H srv1
+cd ~/lib/iac-driver && ./run.sh scenario run pull-vm-roundtrip -H srv1
 ```
 
 ### Authentication
