@@ -21,7 +21,7 @@ homestak site-init
 
 # 5. Install PVE + configure host (generates API token, signing key, node config)
 # Note: On fresh Debian, pve-setup reboots after kernel install.
-#       After reboot, run: sudo -iu homestak && homestak pve-setup
+#       After reboot: sudo -iu homestak, then re-run homestak pve-setup
 homestak pve-setup
 
 # 6. Download and publish packer images
