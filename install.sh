@@ -148,10 +148,10 @@ parse_args() {
 parse_args "$@"
 
 # User-owned installation paths
-HOMESTAK_HOME="${HOMESTAK_DEST:-/home/homestak}"
-HOMESTAK_LIB="$HOMESTAK_HOME/lib"       # Code repos
-HOMESTAK_ETC="$HOMESTAK_HOME/etc"       # Configuration (site-config)
-HOMESTAK_BIN="$HOMESTAK_HOME/bin"       # CLI symlink
+_HOME="${HOMESTAK_DEST:-/home/homestak}"
+HOMESTAK_LIB="$_HOME/lib"       # Code repos
+HOMESTAK_ETC="$_HOME/etc"       # Configuration (site-config)
+HOMESTAK_BIN="$_HOME/bin"       # CLI symlink
 
 GITHUB_ORG="https://github.com/homestak-dev"
 HOMESTAK_USER="${HOMESTAK_USER:-}"
@@ -327,8 +327,8 @@ apt_retry "apt-get install -y -qq git make" || {
 #
 log_info "Setting up homestak repositories..."
 mkdir -p "$HOMESTAK_LIB" "$HOMESTAK_ETC" "$HOMESTAK_BIN"
-mkdir -p "$HOMESTAK_HOME/log" "$HOMESTAK_HOME/cache" "$HOMESTAK_HOME/.ssh"
-chmod 700 "$HOMESTAK_HOME/.ssh"
+mkdir -p "$_HOME/log" "$_HOME/cache" "$_HOME/.ssh"
+chmod 700 "$_HOME/.ssh"
 
 clone_or_update() {
     local repo_name="$1"
@@ -461,7 +461,7 @@ fi
 # Step 8: Set ownership
 #
 log_info "Setting ownership..."
-chown -R homestak:homestak "$HOMESTAK_HOME"
+chown -R homestak:homestak "$_HOME"
 [[ -f "$HOMESTAK_ETC/secrets.yaml" ]] && chmod 600 "$HOMESTAK_ETC/secrets.yaml"
 
 #
