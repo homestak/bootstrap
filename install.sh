@@ -19,7 +19,6 @@
 #   HOMESTAK_REF       Git ref (overridden by --ref)
 #   HOMESTAK_TOKEN     Auth token for HTTP/HTTPS sources (optional)
 #   HOMESTAK_INSECURE  Accept self-signed TLS certs (set to 1)
-#   HOMESTAK_USER      Create a sudo user during bootstrap
 #   HOMESTAK_APPLY     Run a task after bootstrap (e.g., pve-setup)
 #
 # Examples:
@@ -70,7 +69,6 @@ Environment Variables:
   HOMESTAK_REF       Git ref (overridden by --ref)
   HOMESTAK_TOKEN     Auth token for HTTP/HTTPS sources (optional)
   HOMESTAK_INSECURE  Accept self-signed TLS certs (overridden by --insecure)
-  HOMESTAK_USER      Create a sudo user during bootstrap
   HOMESTAK_APPLY     Run a task after bootstrap (e.g., pve-setup)
   HOMESTAK_DEST      Custom home directory (default: /home/homestak)
 
@@ -154,7 +152,6 @@ HOMESTAK_ETC="$_HOME/etc"       # Configuration (site-config)
 HOMESTAK_BIN="$_HOME/bin"       # CLI symlink
 
 GITHUB_ORG="https://github.com/homestak-dev"
-HOMESTAK_USER="${HOMESTAK_USER:-}"
 APPLY_TASK="${HOMESTAK_APPLY:-}"
 
 # Code repos (cloned to HOMESTAK_LIB)
@@ -439,16 +436,7 @@ ln -sf "$HOMESTAK_BIN/homestak" /usr/local/bin/homestak 2>/dev/null || true
 log_info "  Linked: $HOMESTAK_BIN/homestak -> $HOMESTAK_LIB/bootstrap/homestak.sh"
 
 #
-# Step 6: Create additional user if requested (deprecated — homestak user is always created)
-#
-if [[ -n "$HOMESTAK_USER" && "$HOMESTAK_USER" != "homestak" ]]; then
-    log_warn "HOMESTAK_USER is deprecated — the 'homestak' user is always created."
-    log_warn "Creating additional user: $HOMESTAK_USER"
-    "$HOMESTAK_BIN/homestak" user -e local_user="$HOMESTAK_USER"
-fi
-
-#
-# Step 7: Apply task if requested
+# Step 6: Apply task if requested
 #
 if [[ -n "$APPLY_TASK" ]]; then
     if [[ "$APPLY_TASK" == "config" ]]; then
