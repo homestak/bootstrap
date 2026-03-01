@@ -72,12 +72,12 @@ Environment Variables:
   HOMESTAK_INSECURE  Accept self-signed TLS certs (overridden by --insecure)
   HOMESTAK_USER      Create a sudo user during bootstrap
   HOMESTAK_APPLY     Run a task after bootstrap (e.g., pve-setup)
-  HOMESTAK_DEST      Custom installation directory (for testing)
+  HOMESTAK_DEST      Custom home directory (default: /home/homestak)
 
-Installation Paths (FHS-compliant):
-  /usr/local/bin/homestak      CLI symlink
-  /usr/local/etc/homestak/     site-config (configuration)
-  /usr/local/lib/homestak/     code repos
+Installation Paths (~homestak/ user-owned):
+  ~/bin/homestak    CLI symlink
+  ~/etc/            site-config (configuration)
+  ~/lib/            code repos
 
 Source Types:
   github      Default. Clones from GitHub, includes site-config.
@@ -147,12 +147,11 @@ parse_args() {
 
 parse_args "$@"
 
-# FHS-compliant installation paths (can be overridden for testing)
-HOMESTAK_LIB="${HOMESTAK_DEST:-/usr/local/lib/homestak}"   # Code repos
-HOMESTAK_ETC="${HOMESTAK_DEST:+${HOMESTAK_DEST}/etc}"
-HOMESTAK_ETC="${HOMESTAK_ETC:-/usr/local/etc/homestak}"    # Configuration (site-config)
-HOMESTAK_BIN="${HOMESTAK_DEST:+${HOMESTAK_DEST}/bin}"
-HOMESTAK_BIN="${HOMESTAK_BIN:-/usr/local/bin}"             # CLI symlink
+# User-owned installation paths
+HOMESTAK_HOME="${HOMESTAK_DEST:-/home/homestak}"
+HOMESTAK_LIB="$HOMESTAK_HOME/lib"       # Code repos
+HOMESTAK_ETC="$HOMESTAK_HOME/etc"       # Configuration (site-config)
+HOMESTAK_BIN="$HOMESTAK_HOME/bin"       # CLI symlink
 
 GITHUB_ORG="https://github.com/homestak-dev"
 HOMESTAK_USER="${HOMESTAK_USER:-}"
@@ -209,6 +208,15 @@ if [[ -z "${HOMESTAK_DEST:-}" ]] && [[ $EUID -ne 0 ]]; then
     log_error "This script must be run as root"
     echo "Usage: curl -fsSL .../install.sh | sudo bash"
     exit 1
+fi
+
+#
+# Step 0a: Create homestak user if it doesn't exist
+#
+if ! id homestak &>/dev/null; then
+    useradd -m -s /bin/bash homestak
+    echo "homestak ALL=(ALL) NOPASSWD: ALL" > /etc/sudoers.d/homestak
+    chmod 440 /etc/sudoers.d/homestak
 fi
 
 # Detect and configure source
@@ -318,8 +326,9 @@ apt_retry "apt-get install -y -qq git make" || {
 # Step 2: Clone/update homestak repos
 #
 log_info "Setting up homestak repositories..."
-mkdir -p "$HOMESTAK_LIB"
-mkdir -p "$HOMESTAK_ETC"
+mkdir -p "$HOMESTAK_LIB" "$HOMESTAK_ETC" "$HOMESTAK_BIN"
+mkdir -p "$HOMESTAK_HOME/log" "$HOMESTAK_HOME/cache" "$HOMESTAK_HOME/.ssh"
+chmod 700 "$HOMESTAK_HOME/.ssh"
 
 clone_or_update() {
     local repo_name="$1"
@@ -362,7 +371,7 @@ clone_or_update() {
     fi
 }
 
-# Clone code repos to /usr/local/lib/homestak/
+# Clone code repos to ~/lib/
 for repo in "${CODE_REPOS[@]}"; do
     if ! clone_or_update "$repo" "$HOMESTAK_LIB/$repo"; then
         log_error "Failed to clone $repo - aborting"
@@ -370,7 +379,7 @@ for repo in "${CODE_REPOS[@]}"; do
     fi
 done
 
-# Clone site-config to /usr/local/etc/homestak/ (skip for HTTP sources)
+# Clone site-config to ~/etc/ (skip for HTTP sources)
 if [[ "$SKIP_SITE_CONFIG" == "true" ]] || [[ "$SKIP_SITE_CONFIG" == "1" ]]; then
     log_info "  Skipping site-config (SKIP_SITE_CONFIG=${SKIP_SITE_CONFIG})"
 else
@@ -422,23 +431,38 @@ fi
 #
 log_info "Installing homestak CLI..."
 ln -sf "$HOMESTAK_LIB/bootstrap/homestak.sh" "$HOMESTAK_BIN/homestak"
+# Also add to system PATH so all users can run 'homestak'
+ln -sf "$HOMESTAK_BIN/homestak" /usr/local/bin/homestak 2>/dev/null || true
 log_info "  Linked: $HOMESTAK_BIN/homestak -> $HOMESTAK_LIB/bootstrap/homestak.sh"
 
 #
-# Step 6: Create user if requested
+# Step 6: Create additional user if requested (deprecated — homestak user is always created)
 #
-if [[ -n "$HOMESTAK_USER" ]]; then
-    log_info "Creating user: $HOMESTAK_USER"
-    "$HOMESTAK_BIN/homestak" playbook user -e local_user="$HOMESTAK_USER"
+if [[ -n "$HOMESTAK_USER" && "$HOMESTAK_USER" != "homestak" ]]; then
+    log_warn "HOMESTAK_USER is deprecated — the 'homestak' user is always created."
+    log_warn "Creating additional user: $HOMESTAK_USER"
+    "$HOMESTAK_BIN/homestak" user -e local_user="$HOMESTAK_USER"
 fi
 
 #
 # Step 7: Apply task if requested
 #
 if [[ -n "$APPLY_TASK" ]]; then
-    log_info "Applying task: $APPLY_TASK"
-    "$HOMESTAK_BIN/homestak" "$APPLY_TASK"
+    if [[ "$APPLY_TASK" == "config" ]]; then
+        log_info "Applying config phase..."
+        su - homestak -c "cd $HOMESTAK_LIB/iac-driver && ./run.sh config fetch --insecure && ./run.sh config apply"
+    else
+        log_info "Applying task: $APPLY_TASK"
+        "$HOMESTAK_BIN/homestak" "$APPLY_TASK"
+    fi
 fi
+
+#
+# Step 8: Set ownership
+#
+log_info "Setting ownership..."
+chown -R homestak:homestak "$HOMESTAK_HOME"
+[[ -f "$HOMESTAK_ETC/secrets.yaml" ]] && chmod 600 "$HOMESTAK_ETC/secrets.yaml"
 
 #
 # Done - Show summary
