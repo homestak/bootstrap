@@ -14,7 +14,8 @@ curl -fsSL .../install.sh | HOMESTAK_APPLY=pve-setup sudo bash
 # View install.sh options (download first)
 ./install.sh --help
 
-# After bootstrap, use the 'homestak' command
+# After bootstrap, switch to homestak user
+sudo -iu homestak
 homestak status
 homestak pve-setup
 ```
@@ -115,9 +116,10 @@ homestak user                      # User management
 
 ### Execution Requirements
 
-All files are owned by the `homestak` user, so most commands run without sudo:
+All `homestak` commands must run as the `homestak` user (paths resolve via `$HOME`):
 
 ```bash
+sudo -iu homestak
 homestak scenario push-vm-roundtrip --host srv1
 homestak pve-setup
 ```

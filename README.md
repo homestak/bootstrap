@@ -8,20 +8,23 @@ One-command setup for Proxmox infrastructure-as-code.
 # 1. Bootstrap (creates homestak user, clones repos)
 curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh | sudo bash
 
-# 2. Configure site defaults for your network
-sudo -u homestak vi ~homestak/etc/site.yaml
+# 2. Switch to homestak user (all subsequent commands run as homestak)
+sudo -iu homestak
+
+# 3. Configure site defaults for your network
+vi ~/etc/site.yaml
 # Required: defaults.gateway, defaults.dns_servers
 # Optional: defaults.domain (e.g., home.arpa)
 
-# 3. Initialize site configuration (generates host config, SSH key)
+# 4. Initialize site configuration (generates host config, SSH key)
 homestak site-init
 
-# 4. Install PVE + configure host (generates API token, signing key, node config)
+# 5. Install PVE + configure host (generates API token, signing key, node config)
 # Note: On fresh Debian, pve-setup reboots after kernel install.
-#       Re-run the same command after reboot to complete setup.
+#       After reboot, run: sudo -iu homestak && homestak pve-setup
 homestak pve-setup
 
-# 5. Download and publish packer images
+# 6. Download and publish packer images
 homestak images download all --publish
 ```
 
@@ -34,21 +37,16 @@ cd ~/lib/iac-driver
 
 ## Usage
 
+All `homestak` commands run as the `homestak` user:
+
 ```bash
-# Check installation
-homestak status
+sudo -iu homestak
 
-# Configure PVE host
-homestak pve-setup
-
-# Download and publish packer images
-homestak images download all --publish
-
-# Install optional modules
-homestak install packer
-
-# Update all repos
-homestak update
+homestak status                        # Check installation
+homestak pve-setup                     # Configure PVE host
+homestak images download all --publish # Download and publish packer images
+homestak install packer                # Install optional modules
+homestak update                        # Update all repos
 ```
 
 ## Options
