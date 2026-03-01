@@ -5,11 +5,11 @@ The "front door" to the homestak infrastructure-as-code ecosystem. This repo pro
 ## Quick Reference
 
 ```bash
-# Basic bootstrap
-curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh | bash
+# Basic bootstrap (creates homestak user, clones repos)
+curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh | sudo bash
 
-# Bootstrap with user creation
-curl -fsSL .../install.sh | HOMESTAK_USER=homestak bash
+# Bootstrap and immediately run pve-setup
+curl -fsSL .../install.sh | HOMESTAK_APPLY=pve-setup sudo bash
 
 # View install.sh options (download first)
 ./install.sh --help
@@ -17,7 +17,6 @@ curl -fsSL .../install.sh | HOMESTAK_USER=homestak bash
 # After bootstrap, use the 'homestak' command
 homestak status
 homestak pve-setup
-homestak user
 ```
 
 ## What It Does
