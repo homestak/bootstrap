@@ -6,11 +6,11 @@
 # shell script. Runs 3 phases via SSH:
 #   1. Install - curl|bash install.sh with optional env vars
 #   2. Verify modules - homestak status shows ansible/iac-driver/tofu
-#   3. Verify user - check user exists with NOPASSWD sudo (if requested)
+#   3. Verify homestak user - check user exists with NOPASSWD sudo
 #
 # Usage:
 #   ./tests/test-install-remote.sh --target <ip> [--user root] \
-#       [--branch <name>] [--homestak-user <name>]
+#       [--branch <name>]
 #
 # Exit codes: 0=pass, 1=fail, 2=usage error
 #
@@ -23,12 +23,10 @@ BOOTSTRAP_URL="https://raw.githubusercontent.com/homestak-dev/bootstrap/master/i
 TARGET=""
 SSH_USER="root"
 BRANCH=""
-HOMESTAK_USER=""
 SSH_OPTS="-o StrictHostKeyChecking=no -o ConnectTimeout=10"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
-YELLOW='\033[0;33m'
 NC='\033[0m'
 
 usage() {
@@ -38,7 +36,6 @@ usage() {
     echo "  --target <ip>           Target host IP (required)"
     echo "  --user <name>           SSH user (default: root)"
     echo "  --branch <name>         HOMESTAK_BRANCH for install.sh"
-    echo "  --homestak-user <name>  HOMESTAK_USER for install.sh"
     echo "  --help                  Show this help"
     exit 2
 }
@@ -66,7 +63,6 @@ while [[ $# -gt 0 ]]; do
         --target) TARGET="$2"; shift 2 ;;
         --user) SSH_USER="$2"; shift 2 ;;
         --branch) BRANCH="$2"; shift 2 ;;
-        --homestak-user) HOMESTAK_USER="$2"; shift 2 ;;
         --help|-h) usage ;;
         *) echo "Unknown option: $1"; usage ;;
     esac
@@ -85,9 +81,6 @@ log_phase "Install bootstrap on $TARGET"
 env_vars=""
 if [[ -n "$BRANCH" ]]; then
     env_vars="HOMESTAK_BRANCH=$BRANCH "
-fi
-if [[ -n "$HOMESTAK_USER" ]]; then
-    env_vars="${env_vars}HOMESTAK_USER=$HOMESTAK_USER "
 fi
 
 install_cmd="curl -fsSL $BOOTSTRAP_URL | ${env_vars}bash"
@@ -117,25 +110,21 @@ for module in "${required_modules[@]}"; do
     fi
 done
 
-# Phase 3: Verify user (optional)
-if [[ -n "$HOMESTAK_USER" ]]; then
-    log_phase "Verify user '$HOMESTAK_USER'"
+# Phase 3: Verify homestak user
+log_phase "Verify homestak user"
 
-    if run_ssh "id $HOMESTAK_USER" >/dev/null 2>&1; then
-        log_ok "User exists"
-    else
-        log_fail "User '$HOMESTAK_USER' not found"
-        FAILED=1
-    fi
-
-    if run_ssh "grep -r $HOMESTAK_USER /etc/sudoers.d/ 2>/dev/null | grep -q NOPASSWD"; then
-        log_ok "NOPASSWD sudo configured"
-    else
-        log_fail "User '$HOMESTAK_USER' does not have passwordless sudo"
-        FAILED=1
-    fi
+if run_ssh "id homestak" >/dev/null 2>&1; then
+    log_ok "User exists"
 else
-    echo -e "${YELLOW}==>${NC} Skipping user verification (no --homestak-user)"
+    log_fail "User 'homestak' not found"
+    FAILED=1
+fi
+
+if run_ssh "grep -r homestak /etc/sudoers.d/ 2>/dev/null | grep -q NOPASSWD"; then
+    log_ok "NOPASSWD sudo configured"
+else
+    log_fail "User 'homestak' does not have passwordless sudo"
+    FAILED=1
 fi
 
 # Summary

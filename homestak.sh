@@ -534,23 +534,24 @@ get_release_asset_names() {
     # /releases/latest endpoint (which returns the newest numbered release)
     api_url="https://api.github.com/repos/$PACKER_REPO/releases/tags/$version"
 
-    local response headers
+    local response header_file
+    header_file=$(mktemp)
     # Fetch with headers to check rate limit
-    response=$(curl -sS -D /dev/stderr "$api_url" 2>/tmp/gh_api_headers) || {
+    response=$(curl -sS -D /dev/stderr "$api_url" 2>"$header_file") || {
+        rm -f "$header_file"
         echo -e "${RED}Failed to reach GitHub API${NC}" >&2
         return 1
     }
 
     # Check rate limit from headers
     local remaining
-    remaining=$(grep -i 'x-ratelimit-remaining:' /tmp/gh_api_headers 2>/dev/null | tr -d '\r' | awk '{print $2}')
+    remaining=$(grep -i 'x-ratelimit-remaining:' "$header_file" 2>/dev/null | tr -d '\r' | awk '{print $2}')
+    rm -f "$header_file"
     if [[ -n "$remaining" && "$remaining" -eq 0 ]]; then
         echo -e "${RED}GitHub API rate limit reached (60/hr for unauthenticated requests).${NC}" >&2
         echo -e "${YELLOW}Run 'gh auth login' for higher limits, or wait and retry.${NC}" >&2
-        rm -f /tmp/gh_api_headers
         return 1
     fi
-    rm -f /tmp/gh_api_headers
 
     # Check for API error (e.g., 404 for missing release)
     if echo "$response" | python3 -c "import sys,json; d=json.load(sys.stdin); sys.exit(0 if 'assets' in d else 1)" 2>/dev/null; then

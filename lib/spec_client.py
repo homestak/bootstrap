@@ -51,8 +51,8 @@ def discover_state_path() -> Path:
     if env_path := os.environ.get("HOMESTAK_ETC"):
         return Path(env_path) / "state"
 
-    # FHS path (standard for bootstrap installations)
-    return Path("/usr/local/etc/homestak/state")
+    # User-owned path (~homestak/etc/state/)
+    return Path.home() / "etc" / "state"
 
 
 class SpecClient:
