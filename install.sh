@@ -210,6 +210,9 @@ if [[ -z "${HOMESTAK_DEST:-}" ]] && [[ $EUID -ne 0 ]]; then
     exit 1
 fi
 
+# Run a command as the homestak user (files owned correctly from creation)
+_su() { sudo -u homestak -- "$@"; }
+
 #
 # Step 0a: Create homestak user if it doesn't exist
 #
@@ -326,9 +329,9 @@ apt_retry "apt-get install -y -qq git make" || {
 # Step 2: Clone/update homestak repos
 #
 log_info "Setting up homestak repositories..."
-mkdir -p "$HOMESTAK_LIB" "$HOMESTAK_ETC" "$HOMESTAK_BIN"
-mkdir -p "$_HOME/log" "$_HOME/cache" "$_HOME/.ssh"
-chmod 700 "$_HOME/.ssh"
+_su mkdir -p "$HOMESTAK_LIB" "$HOMESTAK_ETC" "$HOMESTAK_BIN"
+_su mkdir -p "$_HOME/log" "$_HOME/cache" "$_HOME/.ssh"
+_su chmod 700 "$_HOME/.ssh"
 
 clone_or_update() {
     local repo_name="$1"
@@ -357,14 +360,14 @@ clone_or_update() {
 
     if [[ -d "$target_dir/.git" ]]; then
         log_info "  Updating $repo_name..."
-        git "${git_opts[@]}" -C "$target_dir" fetch -q origin 2>/dev/null || true
-        git -C "$target_dir" checkout -q "$REF" 2>/dev/null || \
-            git -C "$target_dir" checkout -q "origin/$REF" 2>/dev/null || true
-        git "${git_opts[@]}" -C "$target_dir" pull -q origin "$REF" 2>/dev/null || true
+        _su git "${git_opts[@]}" -C "$target_dir" fetch -q origin 2>/dev/null || true
+        _su git -C "$target_dir" checkout -q "$REF" 2>/dev/null || \
+            _su git -C "$target_dir" checkout -q "origin/$REF" 2>/dev/null || true
+        _su git "${git_opts[@]}" -C "$target_dir" pull -q origin "$REF" 2>/dev/null || true
     else
-        [[ -d "$target_dir" ]] && rm -rf "$target_dir"
+        [[ -d "$target_dir" ]] && _su rm -rf "$target_dir"
         log_info "  Cloning $repo_name from $SOURCE_TYPE ($REF)..."
-        if ! git "${git_opts[@]}" clone -q -b "$REF" "$repo_url" "$target_dir" 2>&1; then
+        if ! _su git "${git_opts[@]}" clone -q -b "$REF" "$repo_url" "$target_dir" 2>&1; then
             log_error "Failed to clone $repo_name"
             return 1
         fi
@@ -392,9 +395,9 @@ fi
 if [[ "$SKIP_SITE_CONFIG" != "true" ]] && [[ "$SKIP_SITE_CONFIG" != "1" ]]; then
     log_info "Setting up site-config..."
     if [[ -f "$HOMESTAK_ETC/Makefile" ]]; then
-        make -C "$HOMESTAK_ETC" setup 2>&1 | sed 's/^/    /' || true
-        make -C "$HOMESTAK_ETC" init-site 2>&1 | sed 's/^/    /' || true
-        make -C "$HOMESTAK_ETC" init-secrets 2>&1 | sed 's/^/    /' || true
+        _su make -C "$HOMESTAK_ETC" setup 2>&1 | sed 's/^/    /' || true
+        _su make -C "$HOMESTAK_ETC" init-site 2>&1 | sed 's/^/    /' || true
+        _su make -C "$HOMESTAK_ETC" init-secrets 2>&1 | sed 's/^/    /' || true
     fi
 else
     log_info "Skipping site-config setup (HTTP source)"
@@ -430,7 +433,7 @@ fi
 # Step 5: Install homestak CLI (symlink to bootstrap/homestak.sh)
 #
 log_info "Installing homestak CLI..."
-ln -sf "$HOMESTAK_LIB/bootstrap/homestak.sh" "$HOMESTAK_BIN/homestak"
+_su ln -sf "$HOMESTAK_LIB/bootstrap/homestak.sh" "$HOMESTAK_BIN/homestak"
 # Also add to system PATH so all users can run 'homestak'
 ln -sf "$HOMESTAK_BIN/homestak" /usr/local/bin/homestak 2>/dev/null || true
 log_info "  Linked: $HOMESTAK_BIN/homestak -> $HOMESTAK_LIB/bootstrap/homestak.sh"
@@ -457,11 +460,7 @@ if [[ -n "$APPLY_TASK" ]]; then
     fi
 fi
 
-#
-# Step 8: Set ownership
-#
-log_info "Setting ownership..."
-chown -R homestak:homestak "$_HOME"
+# Ensure secrets are never world-readable (safety net — make decrypt already sets 600)
 [[ -f "$HOMESTAK_ETC/secrets.yaml" ]] && chmod 600 "$HOMESTAK_ETC/secrets.yaml"
 
 #
