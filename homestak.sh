@@ -3,10 +3,10 @@
 # Homestak CLI
 # Unified interface for homestak IAC tooling
 #
-# Installation paths (FHS-compliant):
-#   /usr/local/bin/homestak      - CLI symlink
-#   /usr/local/etc/homestak/     - site-config (configuration)
-#   /usr/local/lib/homestak/     - code repos
+# Installation paths (~homestak/ user-owned):
+#   ~/bin/homestak   - CLI symlink
+#   ~/etc/           - site-config (configuration)
+#   ~/lib/           - code repos
 #
 set -euo pipefail
 
@@ -17,9 +17,9 @@ get_version() {
 
 VERBOSE=false
 
-# FHS-compliant paths (overridable via environment for development)
-HOMESTAK_LIB="${HOMESTAK_LIB:-/usr/local/lib/homestak}"
-HOMESTAK_ETC="${HOMESTAK_ETC:-/usr/local/etc/homestak}"
+# User-owned paths (overridable via environment for development)
+HOMESTAK_LIB="${HOMESTAK_LIB:-$HOME/lib}"
+HOMESTAK_ETC="${HOMESTAK_ETC:-$HOME/etc}"
 ANSIBLE_DIR="$HOMESTAK_LIB/ansible"
 IAC_DRIVER_DIR="$HOMESTAK_LIB/iac-driver"
 
@@ -27,6 +27,10 @@ RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 NC='\033[0m'
+
+as_root() {
+    if [[ $EUID -eq 0 ]]; then "$@"; else sudo "$@"; fi
+}
 
 usage() {
     echo "homestak $(get_version) - Unified interface for homestak IAC tooling"
@@ -391,11 +395,6 @@ show_status() {
 }
 
 site_init() {
-    if [[ $EUID -ne 0 ]]; then
-        echo -e "${RED}site-init requires root privileges. Use: sudo homestak site-init${NC}"
-        exit 1
-    fi
-
     local force=false
     while [[ $# -gt 0 ]]; do
         case "$1" in
@@ -420,9 +419,9 @@ site_init() {
     fi
     echo "  Generating host configuration..."
     if [[ "$force" == "true" ]]; then
-        make -C "$HOMESTAK_ETC" host-config FORCE=1 2>&1 | sed 's/^/    /'
+        as_root make -C "$HOMESTAK_ETC" host-config FORCE=1 2>&1 | sed 's/^/    /'
     else
-        make -C "$HOMESTAK_ETC" host-config 2>&1 | sed 's/^/    /'
+        as_root make -C "$HOMESTAK_ETC" host-config 2>&1 | sed 's/^/    /'
     fi
 
     # Step 2: Generate node configuration (if PVE is installed)
@@ -435,9 +434,9 @@ site_init() {
         fi
         echo "  Generating node configuration (PVE detected)..."
         if [[ "$force" == "true" ]]; then
-            make -C "$HOMESTAK_ETC" node-config FORCE=1 2>&1 | sed 's/^/    /'
+            as_root make -C "$HOMESTAK_ETC" node-config FORCE=1 2>&1 | sed 's/^/    /'
         else
-            make -C "$HOMESTAK_ETC" node-config 2>&1 | sed 's/^/    /'
+            as_root make -C "$HOMESTAK_ETC" node-config 2>&1 | sed 's/^/    /'
         fi
     else
         echo "  Skipping node config (PVE not detected)"
@@ -504,7 +503,7 @@ site_init() {
 }
 
 # Images directory
-IMAGES_DIR="/var/tmp/homestak/images"
+IMAGES_DIR="$HOME/cache/images"
 PVE_ISO_DIR="/var/lib/vz/template/iso"
 PACKER_REPO="homestak-dev/packer"
 
@@ -837,7 +836,7 @@ images_publish() {
         fi
 
         echo "  Publishing $target -> $dest_name"
-        mv "$source_file" "$dest_file"
+        as_root mv "$source_file" "$dest_file"
         echo "    Installed: $dest_file"
     done
 
@@ -928,7 +927,7 @@ case "$CMD" in
     serve)
         echo -e "${YELLOW}The 'homestak serve' command has been removed.${NC}"
         echo "Use the iac-driver controller instead:"
-        echo "  cd /usr/local/lib/homestak/iac-driver && ./run.sh serve"
+        echo "  cd ~/lib/iac-driver && ./run.sh serve"
         exit 1
         ;;
     # Scenario shortcuts
