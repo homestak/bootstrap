@@ -2,6 +2,16 @@
 
 ## Unreleased
 
+### Changed
+- **BREAKING**: Migrate from FHS paths to user-owned `~homestak/` model (bootstrap#75)
+  - Path defaults: `~/lib`, `~/etc` instead of `/usr/local/{lib,etc}/homestak`
+  - Image cache: `~/cache/images` instead of `/var/tmp/homestak/images`
+  - `install.sh` creates `homestak` user with sudo, owns all paths
+  - `site-init` no longer requires root — uses `as_root` helper for privileged ops
+  - Add `as_root` helper: runs via sudo only when not already root
+  - `HOMESTAK_USER` env var deprecated (homestak user always created)
+  - Add `HOMESTAK_APPLY=config` support for pull-mode first boot
+
 ## v0.51 - 2026-02-28
 
 ### Changed
