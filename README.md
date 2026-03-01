@@ -9,7 +9,7 @@ One-command setup for Proxmox infrastructure-as-code.
 curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh | sudo bash
 
 # 2. Configure site defaults for your network
-sudo -u homestak vi ~/etc/site.yaml
+sudo -u homestak vi ~homestak/etc/site.yaml
 # Required: defaults.gateway, defaults.dns_servers
 # Optional: defaults.domain (e.g., home.arpa)
 
