@@ -70,12 +70,17 @@ load_functions() {
 # Path detection tests
 #
 
-@test "FHS paths are defined correctly" {
-    run grep "HOMESTAK_LIB=" "$HOMESTAK_SH"
-    [[ "$output" =~ '/usr/local/lib/homestak' ]]
+@test "path defaults use HOME" {
+    run grep 'HOMESTAK_LIB=.*HOME' "$HOMESTAK_SH"
+    [[ "$output" =~ '$HOME/lib' ]]
 
-    run grep "HOMESTAK_ETC=" "$HOMESTAK_SH"
-    [[ "$output" =~ '/usr/local/etc/homestak' ]]
+    run grep 'HOMESTAK_ETC=.*HOME' "$HOMESTAK_SH"
+    [[ "$output" =~ '$HOME/etc' ]]
+}
+
+@test "as_root function is defined" {
+    run grep "^as_root()" "$HOMESTAK_SH"
+    [ "$status" -eq 0 ]
 }
 
 #
@@ -180,10 +185,12 @@ load_functions() {
 # site-init tests
 #
 
-@test "site-init requires root" {
+@test "site-init without site-config directory fails" {
+    # Remove the etc dir so site-config check triggers
+    rmdir "$HOMESTAK_ETC"
     run "$HOMESTAK_SH" site-init
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "requires root" ]]
+    [[ "$output" =~ "not found" ]]
 }
 
 #
