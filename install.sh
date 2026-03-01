@@ -431,8 +431,6 @@ fi
 #
 log_info "Installing homestak CLI..."
 _su ln -sf "$HOMESTAK_LIB/bootstrap/homestak.sh" "$HOMESTAK_BIN/homestak"
-# Also add to system PATH so all users can run 'homestak'
-ln -sf "$HOMESTAK_BIN/homestak" /usr/local/bin/homestak 2>/dev/null || true
 log_info "  Linked: $HOMESTAK_BIN/homestak -> $HOMESTAK_LIB/bootstrap/homestak.sh"
 
 #

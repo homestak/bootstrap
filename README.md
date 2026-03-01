@@ -73,7 +73,7 @@ curl ... | HOMESTAK_APPLY=pve-setup sudo bash
 - `site-config/` contents - secrets, hosts, nodes, manifests
 
 **CLI:**
-- `~homestak/bin/homestak` (symlinked to `/usr/local/bin/homestak`)
+- `~homestak/bin/homestak`
 
 **Optional:**
 - `packer/` - Image building (install via `homestak install packer`)
