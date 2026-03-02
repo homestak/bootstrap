@@ -442,7 +442,7 @@ site_init() {
         echo "  Skipping node config (PVE not detected)"
     fi
 
-    # Step 3: Check/generate SSH key
+    # Step 3: Check/generate SSH keys (ed25519 + RSA)
     local ssh_key="$HOME/.ssh/id_ed25519"
     local ssh_pub="$HOME/.ssh/id_ed25519.pub"
     if [[ ! -f "$ssh_pub" ]]; then
@@ -451,6 +451,39 @@ site_init() {
         echo "  Created: $ssh_pub"
     else
         echo "  SSH key exists: $ssh_pub"
+    fi
+
+    # RSA key required by bpg/proxmox provider (Go SSH library can't parse ed25519)
+    local rsa_key="$HOME/.ssh/id_rsa"
+    local rsa_pub="$HOME/.ssh/id_rsa.pub"
+    if [[ ! -f "$rsa_pub" ]]; then
+        echo "  Generating SSH key (rsa)..."
+        ssh-keygen -t rsa -b 4096 -f "$rsa_key" -N "" -C "$(whoami)-rsa@$(hostname)"
+        echo "  Created: $rsa_pub"
+    else
+        echo "  RSA key exists: $rsa_pub"
+    fi
+
+    # Ensure RSA pubkey is in authorized_keys (provider SSH-to-self)
+    if [[ -f "$rsa_pub" ]]; then
+        local auth_keys="$HOME/.ssh/authorized_keys"
+        local rsa_pub_content
+        rsa_pub_content=$(cat "$rsa_pub")
+        touch "$auth_keys"
+        chmod 600 "$auth_keys"
+        if ! grep -qF "$rsa_pub_content" "$auth_keys" 2>/dev/null; then
+            echo "$rsa_pub_content" >> "$auth_keys"
+            echo "  Added RSA key to authorized_keys"
+        fi
+        # Provider also SSHes as root — add to root's authorized_keys
+        local root_auth="/root/.ssh/authorized_keys"
+        if as_root test -d /root/.ssh 2>/dev/null; then
+            if ! as_root grep -qF "$rsa_pub_content" "$root_auth" 2>/dev/null; then
+                echo "$rsa_pub_content" | as_root tee -a "$root_auth" >/dev/null
+                as_root chmod 600 "$root_auth"
+                echo "  Added RSA key to root authorized_keys"
+            fi
+        fi
     fi
 
     # Step 4: Initialize secrets (decrypt .enc or copy .example)
@@ -490,6 +523,31 @@ site_init() {
             fi
         else
             echo -e "  ${YELLOW}Warning: add-ssh-key.py not found, skipping key injection${NC}"
+        fi
+    fi
+
+    # Step 6: Add RSA key to secrets.yaml if not already present
+    if [[ -f "$secrets_file" && -f "$rsa_pub" ]]; then
+        local rsa_pub_key
+        rsa_pub_key=$(cat "$rsa_pub")
+        local rsa_key_id
+        rsa_key_id=$(echo "$rsa_pub_key" | awk '{print $NF}')
+        if [[ -z "$rsa_key_id" || "$rsa_key_id" == "$rsa_pub_key" ]]; then
+            rsa_key_id="$(whoami)-rsa@$(hostname)"
+        fi
+
+        local add_key_script="$HOMESTAK_LIB/bootstrap/scripts/add-ssh-key.py"
+        if [[ -f "$add_key_script" ]]; then
+            local result
+            result=$(python3 "$add_key_script" "$secrets_file" "$rsa_key_id" "$rsa_pub_key" 2>&1)
+            local exit_code=$?
+            if [[ $exit_code -eq 0 ]]; then
+                echo -e "  ${GREEN}Added RSA key to secrets.yaml${NC} (${rsa_key_id})"
+            elif [[ $exit_code -eq 2 ]]; then
+                echo "  RSA key already in secrets.yaml"
+            else
+                echo -e "  ${RED}Failed to add RSA key: $result${NC}"
+            fi
         fi
     fi
 
