@@ -20,7 +20,7 @@ VERBOSE=false
 # User-owned paths (overridable via environment for development)
 HOMESTAK_LIB="${HOMESTAK_LIB:-$HOME/lib}"
 HOMESTAK_ETC="${HOMESTAK_ETC:-$HOME/etc}"
-ANSIBLE_DIR="$HOMESTAK_LIB/ansible"
+export ANSIBLE_DIR="$HOMESTAK_LIB/ansible"
 IAC_DRIVER_DIR="$HOMESTAK_LIB/iac-driver"
 
 RED='\033[0;31m'
@@ -234,8 +234,10 @@ update_repos() {
         if [[ "$dry_run" == "true" ]]; then
             # Dry-run: fetch and show what would change
             git -C "$target_dir" fetch -q origin 2>/dev/null || true
-            local local_ref=$(git -C "$target_dir" rev-parse HEAD 2>/dev/null)
-            local remote_ref=$(git -C "$target_dir" rev-parse origin/master 2>/dev/null || \
+            local local_ref
+            local_ref=$(git -C "$target_dir" rev-parse HEAD 2>/dev/null)
+            local remote_ref
+            remote_ref=$(git -C "$target_dir" rev-parse origin/master 2>/dev/null || \
                              git -C "$target_dir" rev-parse origin/main 2>/dev/null)
             if [[ -n "$version" ]]; then
                 remote_ref=$(git -C "$target_dir" rev-parse "refs/tags/$version" 2>/dev/null || echo "")
@@ -254,7 +256,8 @@ update_repos() {
             if [[ "$local_ref" == "$remote_ref" ]]; then
                 printf "  %-12s %s\n" "$repo" "up to date"
             else
-                local ahead=$(git -C "$target_dir" rev-list --count "$local_ref".."$remote_ref" 2>/dev/null || echo "?")
+                local ahead
+                ahead=$(git -C "$target_dir" rev-list --count "$local_ref".."$remote_ref" 2>/dev/null || echo "?")
                 printf "  %-12s %s\n" "$repo" "$ahead new commit(s)"
             fi
             continue
@@ -329,9 +332,11 @@ update_repos() {
             fi
         else
             # Update to latest
-            local before=$(git -C "$target_dir" rev-parse --short HEAD 2>/dev/null)
+            local before
+            before=$(git -C "$target_dir" rev-parse --short HEAD 2>/dev/null)
             if git -C "$target_dir" pull -q origin 2>/dev/null; then
-                local after=$(git -C "$target_dir" rev-parse --short HEAD 2>/dev/null)
+                local after
+                after=$(git -C "$target_dir" rev-parse --short HEAD 2>/dev/null)
                 if [[ "$before" == "$after" ]]; then
                     echo -e "${GREEN}up to date${NC}"
                 else
@@ -369,8 +374,10 @@ show_status() {
     for repo in bootstrap ansible iac-driver tofu packer; do
         local target_dir="$HOMESTAK_LIB/$repo"
         if [[ -d "$target_dir/.git" ]]; then
-            local branch=$(git -C "$target_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-            local commit=$(git -C "$target_dir" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+            local branch
+            branch=$(git -C "$target_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+            local commit
+            commit=$(git -C "$target_dir" rev-parse --short HEAD 2>/dev/null || echo "unknown")
             printf "  %-12s %s (%s)\n" "$repo" "$branch" "$commit"
         else
             printf "  %-12s %s\n" "$repo" "(not installed)"
@@ -379,8 +386,10 @@ show_status() {
 
     # site-config (separate location)
     if [[ -d "$HOMESTAK_ETC/.git" ]]; then
-        local branch=$(git -C "$HOMESTAK_ETC" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-        local commit=$(git -C "$HOMESTAK_ETC" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        local branch
+        branch=$(git -C "$HOMESTAK_ETC" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+        local commit
+        commit=$(git -C "$HOMESTAK_ETC" rev-parse --short HEAD 2>/dev/null || echo "unknown")
         printf "  %-12s %s (%s)\n" "site-config" "$branch" "$commit"
     else
         printf "  %-12s %s\n" "site-config" "(not installed)"
@@ -411,7 +420,8 @@ site_init() {
     echo -e "${GREEN}==>${NC} Site initialization"
 
     # Step 1: Generate host configuration
-    local host_config="$HOMESTAK_ETC/hosts/$(hostname).yaml"
+    local host_config
+    host_config="$HOMESTAK_ETC/hosts/$(hostname).yaml"
     if [[ -f "$host_config" && "$force" != "true" ]]; then
         echo -e "${RED}Host config already exists: $host_config${NC}"
         echo "Use --force to overwrite"
@@ -426,7 +436,8 @@ site_init() {
 
     # Step 2: Generate node configuration (if PVE is installed)
     if command -v pvesh &>/dev/null; then
-        local node_config="$HOMESTAK_ETC/nodes/$(hostname).yaml"
+        local node_config
+        node_config="$HOMESTAK_ETC/nodes/$(hostname).yaml"
         if [[ -f "$node_config" && "$force" != "true" ]]; then
             echo -e "${RED}Node config already exists: $node_config${NC}"
             echo "Use --force to overwrite"
@@ -717,7 +728,7 @@ images_list() {
         # Check if this is a multipart image
         if echo "$assets" | grep -q "^${img}\.partaa$"; then
             local parts
-            parts=$(echo "$assets" | grep "^${img}\.part" | wc -l)
+            parts=$(echo "$assets" | grep -c "^${img}\.part")
             echo "  $img (multipart: $parts parts)"
         else
             echo "  $img"
@@ -764,7 +775,7 @@ images_download() {
 
     # Expand "all" target
     if [[ " ${targets[*]} " =~ " all " ]]; then
-        targets=($(echo "$assets" | grep '\.qcow2$' || true))
+        mapfile -t targets < <(echo "$assets" | grep '\.qcow2$' || true)
         # Also get split file bases
         local split_bases
         split_bases=$(echo "$assets" | grep '\.qcow2\.partaa$' | sed 's/\.partaa$//' || true)
@@ -838,7 +849,11 @@ images_download() {
     # Auto-publish if requested
     if [[ "$publish" == "true" ]]; then
         echo ""
-        images_publish "${targets[@]}" $(if [[ "$overwrite" == "true" ]]; then echo "--overwrite"; fi)
+        if [[ "$overwrite" == "true" ]]; then
+            images_publish "${targets[@]}" --overwrite
+        else
+            images_publish "${targets[@]}"
+        fi
     fi
 }
 
@@ -856,7 +871,7 @@ images_publish() {
 
     if [[ ${#targets[@]} -eq 0 ]]; then
         # Publish all downloaded images
-        targets=($(ls "$IMAGES_DIR"/*.qcow2 2>/dev/null | xargs -I{} basename {} || true))
+        mapfile -t targets < <(find "$IMAGES_DIR" -maxdepth 1 -name '*.qcow2' -printf '%f\n' 2>/dev/null || true)
     fi
 
     if [[ ${#targets[@]} -eq 0 ]]; then
@@ -915,7 +930,7 @@ while [[ $# -gt 0 ]]; do
             exit 0
             ;;
         --verbose|-v)
-            VERBOSE=true
+            export VERBOSE=true
             PASSTHROUGH_ARGS+=("$1")
             shift
             ;;
