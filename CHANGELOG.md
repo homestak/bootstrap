@@ -11,6 +11,12 @@
   - Add `as_root` helper: runs via sudo only when not already root
   - `HOMESTAK_USER` env var deprecated (homestak user always created)
   - Add `HOMESTAK_APPLY=config` support for pull-mode first boot
+- `site-init` generates RSA key alongside ed25519 for bpg/proxmox provider compatibility (#90)
+  - RSA pubkey added to `authorized_keys` (homestak + root) for provider SSH-to-self
+  - RSA pubkey added to `secrets.yaml` via `add-ssh-key.py`
+
+### Fixed
+- Resolve all shellcheck warnings in `homestak.sh` (#90)
 
 ## v0.51 - 2026-02-28
 
