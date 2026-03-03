@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.52 - 2026-03-02
+
 ### Changed
 - **BREAKING**: Migrate from FHS paths to user-owned `~homestak/` model (bootstrap#75)
   - Path defaults: `~/lib`, `~/etc` instead of `/usr/local/{lib,etc}/homestak`
