@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+## v0.53 - 2026-03-06
+
+### Changed
+- `site-init` generates RSA key alongside ed25519 for bpg/proxmox provider compatibility (#90)
+  - RSA pubkey added to `authorized_keys` (homestak + root) for provider SSH-to-self
+  - RSA pubkey added to `secrets.yaml` via `add-ssh-key.py`
+
+### Fixed
+- Resolve all shellcheck warnings in `homestak.sh` (#90)
+
+## v0.52 - 2026-03-02
+
 ### Changed
 - **BREAKING**: Migrate from FHS paths to user-owned `~homestak/` model (bootstrap#75)
   - Path defaults: `~/lib`, `~/etc` instead of `/usr/local/{lib,etc}/homestak`
@@ -11,12 +23,6 @@
   - Add `as_root` helper: runs via sudo only when not already root
   - `HOMESTAK_USER` env var deprecated (homestak user always created)
   - Add `HOMESTAK_APPLY=config` support for pull-mode first boot
-- `site-init` generates RSA key alongside ed25519 for bpg/proxmox provider compatibility (#90)
-  - RSA pubkey added to `authorized_keys` (homestak + root) for provider SSH-to-self
-  - RSA pubkey added to `secrets.yaml` via `add-ssh-key.py`
-
-### Fixed
-- Resolve all shellcheck warnings in `homestak.sh` (#90)
 
 ## v0.51 - 2026-02-28
 
