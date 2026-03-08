@@ -6,13 +6,13 @@ The "front door" to the homestak infrastructure-as-code ecosystem. This repo pro
 
 ```bash
 # Basic bootstrap (creates homestak user, clones repos)
-curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh | sudo bash
+curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install | sudo bash
 
 # Bootstrap and immediately run pve-setup
-curl -fsSL .../install.sh | HOMESTAK_APPLY=pve-setup sudo bash
+curl -fsSL .../install | HOMESTAK_APPLY=pve-setup sudo bash
 
-# View install.sh options (download first)
-./install.sh --help
+# View install options (download first)
+./install --help
 
 # After bootstrap, switch to homestak user
 sudo -iu homestak
@@ -36,8 +36,8 @@ homestak pve-setup
 
 ```
 bootstrap/
-├── install.sh      # curl|bash entry point
-├── homestak.sh     # Standalone CLI script
+├── install         # curl|bash entry point
+├── homestak        # Standalone CLI script
 ├── lib/            # Python modules
 │   └── spec_client.py  # HTTP client for spec fetching
 ├── tests/          # Test scripts
@@ -50,12 +50,12 @@ bootstrap/
 
 ## Installed Structure
 
-After running install.sh:
+After running install:
 
 ```
 ~homestak/
 ├── bin/
-│   └── homestak → ../lib/bootstrap/homestak.sh
+│   └── homestak → ../lib/bootstrap/homestak
 ├── etc/                    # site-config (configuration)
 │   ├── site.yaml
 │   ├── secrets.yaml
@@ -68,8 +68,8 @@ After running install.sh:
 │   └── manifests/
 ├── lib/                    # code repos
 │   ├── bootstrap/
-│   │   ├── homestak.sh
-│   │   └── install.sh
+│   │   ├── homestak
+│   │   └── install
 │   ├── ansible/
 │   ├── iac-driver/
 │   ├── tofu/
