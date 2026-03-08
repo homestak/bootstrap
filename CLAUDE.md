@@ -6,7 +6,7 @@ The "front door" to the homestak infrastructure-as-code ecosystem. This repo pro
 
 ```bash
 # Basic bootstrap (creates homestak user, clones repos)
-curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install | sudo bash
+curl -fsSL https://raw.githubusercontent.com/homestak/bootstrap/master/install | sudo bash
 
 # Bootstrap and immediately run pve-setup
 curl -fsSL .../install | HOMESTAK_APPLY=pve-setup sudo bash
@@ -288,12 +288,12 @@ Bootstrap installs `git`, `make`, and `gh` (GitHub CLI), then delegates to each 
 
 | Repo | Purpose |
 |------|---------|
-| [bootstrap](https://github.com/homestak-dev/bootstrap) | This repo - entry point |
-| [site-config](https://github.com/homestak-dev/site-config) | Site-specific secrets and configuration |
-| [ansible](https://github.com/homestak-dev/ansible) | Playbooks and roles |
-| [iac-driver](https://github.com/homestak-dev/iac-driver) | Orchestration engine |
-| [tofu](https://github.com/homestak-dev/tofu) | VM provisioning |
-| [packer](https://github.com/homestak-dev/packer) | Custom Debian cloud images |
+| [bootstrap](https://github.com/homestak/bootstrap) | This repo - entry point |
+| [config](https://github.com/homestak/config) | Site-specific secrets and configuration |
+| [ansible](https://github.com/homestak-iac/ansible) | Playbooks and roles |
+| [iac-driver](https://github.com/homestak-iac/iac-driver) | Orchestration engine |
+| [tofu](https://github.com/homestak-iac/tofu) | VM provisioning |
+| [packer](https://github.com/homestak-iac/packer) | Custom Debian cloud images |
 
 ## Design Philosophy
 

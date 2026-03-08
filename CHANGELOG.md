@@ -10,6 +10,10 @@
   - Drop `~/bin/` symlink directory — CLI resolved via PATH
 - Drop `.sh` extension from executable scripts (homestak-dev#313)
   - `homestak.sh` → `homestak`, `install.sh` → `install`
+- Update clone URLs for multi-org structure (#94)
+  - bootstrap, config → `homestak` org
+  - ansible, iac-driver, tofu, packer → `homestak-iac` org
+  - `site-config` repo renamed to `config`
 
 ## v0.53 - 2026-03-06
 

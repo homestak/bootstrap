@@ -124,7 +124,7 @@ run_preflight() {
 
 install_module() {
     local module="$1"
-    local repo_url="https://github.com/homestak-dev/${module}.git"
+    local repo_url="https://github.com/homestak-iac/${module}.git"
     local target_dir="$IAC_DIR/$module"
 
     case "$module" in
@@ -578,7 +578,7 @@ site_init() {
 # Images directory
 IMAGES_DIR="$HOME/cache/images"
 PVE_ISO_DIR="/var/lib/vz/template/iso"
-PACKER_REPO="homestak-dev/packer"
+PACKER_REPO="homestak-iac/packer"
 
 # Check if gh CLI is authenticated (cached for session)
 _GH_AUTH_CHECKED=""

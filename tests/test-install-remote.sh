@@ -17,7 +17,7 @@
 
 set -euo pipefail
 
-BOOTSTRAP_URL="https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh"
+BOOTSTRAP_URL="https://raw.githubusercontent.com/homestak/bootstrap/master/install"
 
 # Defaults
 TARGET=""
