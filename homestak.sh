@@ -4,9 +4,9 @@
 # Unified interface for homestak IAC tooling
 #
 # Installation paths (~homestak/ user-owned):
-#   ~/bin/homestak   - CLI symlink
-#   ~/etc/           - site-config (configuration)
-#   ~/lib/           - code repos
+#   ~/bootstrap/     - Bootstrap repo (contains this CLI)
+#   ~/config/        - Site configuration
+#   ~/iac/           - IaC repos (ansible, iac-driver, tofu)
 #
 set -euo pipefail
 
@@ -17,11 +17,13 @@ get_version() {
 
 VERBOSE=false
 
-# User-owned paths (overridable via environment for development)
-HOMESTAK_LIB="${HOMESTAK_LIB:-$HOME/lib}"
-HOMESTAK_ETC="${HOMESTAK_ETC:-$HOME/etc}"
-export ANSIBLE_DIR="$HOMESTAK_LIB/ansible"
-IAC_DRIVER_DIR="$HOMESTAK_LIB/iac-driver"
+# All paths derived from HOMESTAK_ROOT
+HOMESTAK_ROOT="${HOMESTAK_ROOT:-$HOME}"
+CONFIG_DIR="$HOMESTAK_ROOT/config"
+IAC_DIR="$HOMESTAK_ROOT/iac"
+export ANSIBLE_DIR="$IAC_DIR/ansible"
+IAC_DRIVER_DIR="$IAC_DIR/iac-driver"
+BOOTSTRAP_DIR="$HOMESTAK_ROOT/bootstrap"
 
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -123,7 +125,7 @@ run_preflight() {
 install_module() {
     local module="$1"
     local repo_url="https://github.com/homestak-dev/${module}.git"
-    local target_dir="$HOMESTAK_LIB/$module"
+    local target_dir="$IAC_DIR/$module"
 
     case "$module" in
         packer)
@@ -150,15 +152,15 @@ install_module() {
 manage_secrets() {
     local action="$1"
 
-    if [[ ! -d "$HOMESTAK_ETC" ]]; then
-        echo -e "${RED}site-config not found at $HOMESTAK_ETC${NC}"
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        echo -e "${RED}site-config not found at $CONFIG_DIR${NC}"
         exit 1
     fi
 
     case "$action" in
         decrypt|encrypt|check|validate)
             echo -e "${GREEN}==>${NC} Running: make $action"
-            make -C "$HOMESTAK_ETC" "$action"
+            make -C "$CONFIG_DIR" "$action"
             ;;
         *)
             echo -e "${RED}Unknown action: $action${NC}"
@@ -171,8 +173,8 @@ manage_secrets() {
 spec_validate_removed() {
     echo -e "${YELLOW}The 'homestak spec validate' command has been moved to site-config.${NC}"
     echo "Use the site-config validation script instead:"
-    echo "  cd $HOMESTAK_ETC && make validate"
-    echo "  cd $HOMESTAK_ETC && ./scripts/validate-schemas.sh [--json] [path...]"
+    echo "  cd $CONFIG_DIR && make validate"
+    echo "  cd $CONFIG_DIR && ./scripts/validate-schemas.sh [--json] [path...]"
     exit 1
 }
 
@@ -197,7 +199,7 @@ update_repos() {
         exit 1
     fi
 
-    local all_repos=("bootstrap" "ansible" "iac-driver" "tofu" "packer" "site-config")
+    local all_repos=("bootstrap" "ansible" "iac-driver" "tofu" "packer" "config")
     local success_count=0
     local fail_count=0
 
@@ -213,10 +215,12 @@ update_repos() {
 
     for repo in "${all_repos[@]}"; do
         local target_dir
-        if [[ "$repo" == "site-config" ]]; then
-            target_dir="$HOMESTAK_ETC"
+        if [[ "$repo" == "config" ]]; then
+            target_dir="$CONFIG_DIR"
+        elif [[ "$repo" == "bootstrap" ]]; then
+            target_dir="$BOOTSTRAP_DIR"
         else
-            target_dir="$HOMESTAK_LIB/$repo"
+            target_dir="$IAC_DIR/$repo"
         fi
 
         if [[ ! -d "$target_dir/.git" ]]; then
@@ -362,38 +366,38 @@ update_repos() {
     fi
 }
 
+_show_repo_status() {
+    local name="$1"
+    local target_dir="$2"
+    if [[ -d "$target_dir/.git" ]]; then
+        local branch commit
+        branch=$(git -C "$target_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
+        commit=$(git -C "$target_dir" rev-parse --short HEAD 2>/dev/null || echo "unknown")
+        printf "  %-12s %s (%s)\n" "$name" "$branch" "$commit"
+    else
+        printf "  %-12s %s\n" "$name" "(not installed)"
+    fi
+}
+
 show_status() {
     echo "Homestak Status"
     echo ""
-    echo "Code directory: $HOMESTAK_LIB"
-    echo "Config directory: $HOMESTAK_ETC"
+    echo "Root:   $HOMESTAK_ROOT"
+    echo "Config: $CONFIG_DIR"
+    echo "IaC:    $IAC_DIR"
     echo ""
     echo "Installed modules:"
 
-    # Code repos
-    for repo in bootstrap ansible iac-driver tofu packer; do
-        local target_dir="$HOMESTAK_LIB/$repo"
-        if [[ -d "$target_dir/.git" ]]; then
-            local branch
-            branch=$(git -C "$target_dir" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-            local commit
-            commit=$(git -C "$target_dir" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-            printf "  %-12s %s (%s)\n" "$repo" "$branch" "$commit"
-        else
-            printf "  %-12s %s\n" "$repo" "(not installed)"
-        fi
+    # Bootstrap (top-level)
+    _show_repo_status "bootstrap" "$BOOTSTRAP_DIR"
+
+    # IaC repos
+    for repo in ansible iac-driver tofu packer; do
+        _show_repo_status "$repo" "$IAC_DIR/$repo"
     done
 
-    # site-config (separate location)
-    if [[ -d "$HOMESTAK_ETC/.git" ]]; then
-        local branch
-        branch=$(git -C "$HOMESTAK_ETC" rev-parse --abbrev-ref HEAD 2>/dev/null || echo "unknown")
-        local commit
-        commit=$(git -C "$HOMESTAK_ETC" rev-parse --short HEAD 2>/dev/null || echo "unknown")
-        printf "  %-12s %s (%s)\n" "site-config" "$branch" "$commit"
-    else
-        printf "  %-12s %s\n" "site-config" "(not installed)"
-    fi
+    # Config (top-level)
+    _show_repo_status "config" "$CONFIG_DIR"
 
     echo ""
     echo "Tools:"
@@ -412,8 +416,8 @@ site_init() {
         esac
     done
 
-    if [[ ! -d "$HOMESTAK_ETC" ]]; then
-        echo -e "${RED}site-config not found at $HOMESTAK_ETC. Run bootstrap first.${NC}"
+    if [[ ! -d "$CONFIG_DIR" ]]; then
+        echo -e "${RED}site-config not found at $CONFIG_DIR. Run bootstrap first.${NC}"
         exit 1
     fi
 
@@ -421,7 +425,7 @@ site_init() {
 
     # Step 1: Generate host configuration
     local host_config
-    host_config="$HOMESTAK_ETC/hosts/$(hostname).yaml"
+    host_config="$CONFIG_DIR/hosts/$(hostname).yaml"
     if [[ -f "$host_config" && "$force" != "true" ]]; then
         echo -e "${RED}Host config already exists: $host_config${NC}"
         echo "Use --force to overwrite"
@@ -429,15 +433,15 @@ site_init() {
     fi
     echo "  Generating host configuration..."
     if [[ "$force" == "true" ]]; then
-        as_root make -C "$HOMESTAK_ETC" host-config FORCE=1 2>&1 | sed 's/^/    /'
+        as_root make -C "$CONFIG_DIR" host-config FORCE=1 2>&1 | sed 's/^/    /'
     else
-        as_root make -C "$HOMESTAK_ETC" host-config 2>&1 | sed 's/^/    /'
+        as_root make -C "$CONFIG_DIR" host-config 2>&1 | sed 's/^/    /'
     fi
 
     # Step 2: Generate node configuration (if PVE is installed)
     if command -v pvesh &>/dev/null; then
         local node_config
-        node_config="$HOMESTAK_ETC/nodes/$(hostname).yaml"
+        node_config="$CONFIG_DIR/nodes/$(hostname).yaml"
         if [[ -f "$node_config" && "$force" != "true" ]]; then
             echo -e "${RED}Node config already exists: $node_config${NC}"
             echo "Use --force to overwrite"
@@ -445,9 +449,9 @@ site_init() {
         fi
         echo "  Generating node configuration (PVE detected)..."
         if [[ "$force" == "true" ]]; then
-            as_root make -C "$HOMESTAK_ETC" node-config FORCE=1 2>&1 | sed 's/^/    /'
+            as_root make -C "$CONFIG_DIR" node-config FORCE=1 2>&1 | sed 's/^/    /'
         else
-            as_root make -C "$HOMESTAK_ETC" node-config 2>&1 | sed 's/^/    /'
+            as_root make -C "$CONFIG_DIR" node-config 2>&1 | sed 's/^/    /'
         fi
     else
         echo "  Skipping node config (PVE not detected)"
@@ -498,17 +502,17 @@ site_init() {
     fi
 
     # Step 4: Initialize secrets (decrypt .enc or copy .example)
-    if [[ -f "$HOMESTAK_ETC/secrets.yaml" ]]; then
+    if [[ -f "$CONFIG_DIR/secrets.yaml" ]]; then
         echo "  Secrets already initialized"
     else
         echo "  Initializing secrets..."
-        make -C "$HOMESTAK_ETC" init-secrets 2>&1 | sed 's/^/    /' || {
+        make -C "$CONFIG_DIR" init-secrets 2>&1 | sed 's/^/    /' || {
             echo -e "${YELLOW}  Warning: Could not initialize secrets${NC}"
         }
     fi
 
     # Step 5: Add SSH key to secrets.yaml if not already present
-    local secrets_file="$HOMESTAK_ETC/secrets.yaml"
+    local secrets_file="$CONFIG_DIR/secrets.yaml"
     if [[ -f "$secrets_file" && -f "$ssh_pub" ]]; then
         local pub_key
         pub_key=$(cat "$ssh_pub")
@@ -520,7 +524,7 @@ site_init() {
         fi
 
         # Use Python script for safe YAML manipulation
-        local add_key_script="$HOMESTAK_LIB/bootstrap/scripts/add-ssh-key.py"
+        local add_key_script="$BOOTSTRAP_DIR/scripts/add-ssh-key.py"
         if [[ -f "$add_key_script" ]]; then
             local result
             result=$(python3 "$add_key_script" "$secrets_file" "$key_id" "$pub_key" 2>&1)
@@ -547,7 +551,7 @@ site_init() {
             rsa_key_id="$(whoami)-rsa@$(hostname)"
         fi
 
-        local add_key_script="$HOMESTAK_LIB/bootstrap/scripts/add-ssh-key.py"
+        local add_key_script="$BOOTSTRAP_DIR/scripts/add-ssh-key.py"
         if [[ -f "$add_key_script" ]]; then
             local result
             result=$(python3 "$add_key_script" "$secrets_file" "$rsa_key_id" "$rsa_pub_key" 2>&1)
@@ -566,7 +570,7 @@ site_init() {
     echo -e "${GREEN}==>${NC} Site initialization complete"
     echo ""
     echo "Next steps:"
-    echo "  1. Review generated configs in $HOMESTAK_ETC/"
+    echo "  1. Review generated configs in $CONFIG_DIR/"
     echo "  2. Run: homestak images download all --publish"
     echo ""
 }
@@ -993,7 +997,7 @@ case "$CMD" in
             get)
                 # Run the spec_client module
                 # Use HOMESTAK_LIB/bootstrap (not SCRIPT_DIR) to handle symlink execution
-                PYTHONPATH="$HOMESTAK_LIB/bootstrap" python3 -m lib.spec_client "$@"
+                PYTHONPATH="$BOOTSTRAP_DIR" python3 -m lib.spec_client "$@"
                 ;;
             *) echo -e "${RED}Unknown spec subcommand: $SUBCMD${NC}"; exit 1 ;;
         esac
@@ -1001,7 +1005,7 @@ case "$CMD" in
     serve)
         echo -e "${YELLOW}The 'homestak serve' command has been removed.${NC}"
         echo "Use the iac-driver controller instead:"
-        echo "  cd ~/lib/iac-driver && ./run.sh serve"
+        echo "  cd ~/iac/iac-driver && ./run.sh serve"
         exit 1
         ;;
     # Scenario shortcuts

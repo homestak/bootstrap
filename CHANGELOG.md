@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Changed
+- **BREAKING**: Restructure workspace layout for multi-org support (homestak-dev#311)
+  - `~/lib/` → `~/iac/` (ansible, iac-driver, tofu), `~/bootstrap/`, `~/config/`
+  - `HOMESTAK_ROOT` replaces `HOMESTAK_LIB`, `HOMESTAK_ETC`, `HOMESTAK_SITE_CONFIG`
+  - `~/.profile` sets `HOMESTAK_ROOT=$HOME` and adds `$HOMESTAK_ROOT/bootstrap` to PATH
+  - Drop `~/bin/` symlink directory — CLI resolved via PATH
+
 ## v0.53 - 2026-03-06
 
 ### Changed

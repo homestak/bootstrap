@@ -73,9 +73,9 @@ Environment Variables:
   HOMESTAK_DEST      Custom home directory (default: /home/homestak)
 
 Installation Paths (~homestak/ user-owned):
-  ~/bin/homestak    CLI symlink
-  ~/etc/            site-config (configuration)
-  ~/lib/            code repos
+  ~/bootstrap/      Bootstrap repo (contains CLI)
+  ~/config/         Site configuration
+  ~/iac/            IaC repos (ansible, iac-driver, tofu)
 
 Source Types:
   github      Default. Clones from GitHub, includes site-config.
@@ -147,15 +147,16 @@ parse_args "$@"
 
 # User-owned installation paths
 _HOME="${HOMESTAK_DEST:-/home/homestak}"
-HOMESTAK_LIB="$_HOME/lib"       # Code repos
-HOMESTAK_ETC="$_HOME/etc"       # Configuration (site-config)
-HOMESTAK_BIN="$_HOME/bin"       # CLI symlink
+HOMESTAK_ROOT="$_HOME"
+IAC_DIR="$HOMESTAK_ROOT/iac"          # IaC repos (ansible, iac-driver, tofu)
+CONFIG_DIR="$HOMESTAK_ROOT/config"    # Configuration (site-config)
+BOOTSTRAP_DIR="$HOMESTAK_ROOT/bootstrap"  # Bootstrap repo (contains CLI)
 
 GITHUB_ORG="https://github.com/homestak-dev"
 APPLY_TASK="${HOMESTAK_APPLY:-}"
 
-# Code repos (cloned to HOMESTAK_LIB)
-CODE_REPOS=(bootstrap ansible iac-driver tofu)
+# IaC repos (cloned to IAC_DIR)
+IAC_REPOS=(ansible iac-driver tofu)
 
 # Source detection and configuration
 SOURCE_TYPE=""
@@ -326,8 +327,8 @@ apt_retry "apt-get install -y -qq git make" || {
 # Step 2: Clone/update homestak repos
 #
 log_info "Setting up homestak repositories..."
-_su mkdir -p "$HOMESTAK_LIB" "$HOMESTAK_ETC" "$HOMESTAK_BIN"
-_su mkdir -p "$_HOME/log" "$_HOME/cache" "$_HOME/.ssh"
+_su mkdir -p "$IAC_DIR" "$CONFIG_DIR" "$BOOTSTRAP_DIR"
+_su mkdir -p "$HOMESTAK_ROOT/logs" "$HOMESTAK_ROOT/.cache" "$_HOME/.ssh"
 _su chmod 700 "$_HOME/.ssh"
 
 clone_or_update() {
@@ -371,19 +372,25 @@ clone_or_update() {
     fi
 }
 
-# Clone code repos to ~/lib/
-for repo in "${CODE_REPOS[@]}"; do
-    if ! clone_or_update "$repo" "$HOMESTAK_LIB/$repo"; then
+# Clone bootstrap to $ROOT/bootstrap/
+if ! clone_or_update "bootstrap" "$BOOTSTRAP_DIR"; then
+    log_error "Failed to clone bootstrap - aborting"
+    exit 1
+fi
+
+# Clone IaC repos to $ROOT/iac/
+for repo in "${IAC_REPOS[@]}"; do
+    if ! clone_or_update "$repo" "$IAC_DIR/$repo"; then
         log_error "Failed to clone $repo - aborting"
         exit 1
     fi
 done
 
-# Clone site-config to ~/etc/ (skip for HTTP sources)
+# Clone site-config to $ROOT/config/
 if [[ "$SKIP_SITE_CONFIG" == "true" ]] || [[ "$SKIP_SITE_CONFIG" == "1" ]]; then
     log_info "  Skipping site-config (SKIP_SITE_CONFIG=${SKIP_SITE_CONFIG})"
 else
-    clone_or_update "site-config" "$HOMESTAK_ETC"
+    clone_or_update "site-config" "$CONFIG_DIR"
 fi
 
 #
@@ -391,17 +398,17 @@ fi
 #
 if [[ "$SKIP_SITE_CONFIG" != "true" ]] && [[ "$SKIP_SITE_CONFIG" != "1" ]]; then
     log_info "Setting up site-config..."
-    if [[ -f "$HOMESTAK_ETC/Makefile" ]]; then
-        _su make -C "$HOMESTAK_ETC" setup 2>&1 | sed 's/^/    /' || true
-        _su make -C "$HOMESTAK_ETC" init-site 2>&1 | sed 's/^/    /' || true
-        _su make -C "$HOMESTAK_ETC" init-secrets 2>&1 | sed 's/^/    /' || true
+    if [[ -f "$CONFIG_DIR/Makefile" ]]; then
+        _su make -C "$CONFIG_DIR" setup 2>&1 | sed 's/^/    /' || true
+        _su make -C "$CONFIG_DIR" init-site 2>&1 | sed 's/^/    /' || true
+        _su make -C "$CONFIG_DIR" init-secrets 2>&1 | sed 's/^/    /' || true
     fi
 else
     log_info "Skipping site-config setup (HTTP source)"
 fi
 
 # Export for iac-driver discovery
-export HOMESTAK_SITE_CONFIG="$HOMESTAK_ETC"
+export HOMESTAK_ROOT="$HOMESTAK_ROOT"
 
 #
 # Step 4: Install dependencies for each repo
@@ -410,28 +417,39 @@ export HOMESTAK_SITE_CONFIG="$HOMESTAK_ETC"
 # (e.g., cloud-init apt-get update that was killed or overlapped).
 apt-get clean 2>/dev/null || true
 log_info "Installing dependencies..."
-for repo in "${CODE_REPOS[@]}"; do
-    if [[ -f "$HOMESTAK_LIB/$repo/Makefile" ]] && [[ "$repo" != "bootstrap" ]]; then
+for repo in "${IAC_REPOS[@]}"; do
+    if [[ -f "$IAC_DIR/$repo/Makefile" ]]; then
         # Wait before EACH repo — apt processes may start between repos
         # (unattended-upgrades, cloud-init, etc. can spawn new apt-get at any time)
         wait_for_apt
         log_info "  $repo..."
-        make -C "$HOMESTAK_LIB/$repo" install-deps 2>&1 | sed 's/^/    /'
+        make -C "$IAC_DIR/$repo" install-deps 2>&1 | sed 's/^/    /'
     fi
 done
 # site-config has its own install-deps (age, sops) — run separately
-if [[ -f "$HOMESTAK_ETC/Makefile" ]]; then
+if [[ -f "$CONFIG_DIR/Makefile" ]]; then
     wait_for_apt
     log_info "  site-config..."
-    make -C "$HOMESTAK_ETC" install-deps 2>&1 | sed 's/^/    /'
+    make -C "$CONFIG_DIR" install-deps 2>&1 | sed 's/^/    /'
 fi
 
 #
-# Step 5: Install homestak CLI (symlink to bootstrap/homestak.sh)
+# Step 5: Set up PATH via ~/.profile
 #
-log_info "Installing homestak CLI..."
-_su ln -sf "$HOMESTAK_LIB/bootstrap/homestak.sh" "$HOMESTAK_BIN/homestak"
-log_info "  Linked: $HOMESTAK_BIN/homestak -> $HOMESTAK_LIB/bootstrap/homestak.sh"
+log_info "Setting up environment..."
+PROFILE="$_HOME/.profile"
+# Add HOMESTAK_ROOT and PATH to ~/.profile (idempotent)
+if ! grep -q 'HOMESTAK_ROOT' "$PROFILE" 2>/dev/null; then
+    _su tee -a "$PROFILE" > /dev/null <<'PROFILEEOF'
+
+# Homestak environment
+export HOMESTAK_ROOT="$HOME"
+export PATH="$HOMESTAK_ROOT/bootstrap:$PATH"
+PROFILEEOF
+    log_info "  Added HOMESTAK_ROOT and PATH to $PROFILE"
+else
+    log_info "  HOMESTAK_ROOT already in $PROFILE"
+fi
 
 #
 # Step 6: Apply task if requested
@@ -439,15 +457,15 @@ log_info "  Linked: $HOMESTAK_BIN/homestak -> $HOMESTAK_LIB/bootstrap/homestak.s
 if [[ -n "$APPLY_TASK" ]]; then
     if [[ "$APPLY_TASK" == "config" ]]; then
         log_info "Applying config phase..."
-        su - homestak -c "cd $HOMESTAK_LIB/iac-driver && ./run.sh config fetch --insecure && ./run.sh config apply"
+        su - homestak -c "cd $IAC_DIR/iac-driver && ./run.sh config fetch --insecure && ./run.sh config apply"
     else
         log_info "Applying task: $APPLY_TASK"
-        "$HOMESTAK_BIN/homestak" "$APPLY_TASK"
+        su - homestak -c "homestak $APPLY_TASK"
     fi
 fi
 
 # Ensure secrets are never world-readable (safety net — make decrypt already sets 600)
-[[ -f "$HOMESTAK_ETC/secrets.yaml" ]] && chmod 600 "$HOMESTAK_ETC/secrets.yaml"
+[[ -f "$CONFIG_DIR/secrets.yaml" ]] && chmod 600 "$CONFIG_DIR/secrets.yaml"
 
 #
 # Done - Show summary
@@ -459,20 +477,22 @@ echo -e "${GREEN}═════════════════════
 echo ""
 echo "Installation:"
 echo "  Source:      $SOURCE_TYPE ($REF)"
-echo "  Code repos:  $HOMESTAK_LIB"
+echo "  Root:        $HOMESTAK_ROOT"
+echo "  IaC repos:   $IAC_DIR"
 if [[ "$SKIP_SITE_CONFIG" != "true" ]] && [[ "$SKIP_SITE_CONFIG" != "1" ]]; then
-    echo "  Config:      $HOMESTAK_ETC"
+    echo "  Config:      $CONFIG_DIR"
 fi
-echo "  CLI:         $HOMESTAK_BIN/homestak"
+echo "  CLI:         $BOOTSTRAP_DIR/homestak.sh"
 echo ""
 echo "Modules:"
-for repo in "${CODE_REPOS[@]}"; do
+echo "  - bootstrap"
+for repo in "${IAC_REPOS[@]}"; do
     echo "  - $repo"
 done
 if [[ "$SKIP_SITE_CONFIG" != "true" ]] && [[ "$SKIP_SITE_CONFIG" != "1" ]]; then
-    echo "  - site-config"
+    echo "  - config (site-config)"
 else
-    echo "  - site-config (skipped - configure separately)"
+    echo "  - config (skipped - configure separately)"
 fi
 echo ""
 echo "Quick start:"
