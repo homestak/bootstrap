@@ -41,18 +41,13 @@ def discover_state_path() -> Path:
     """
     Discover the state directory path.
 
-    Uses same discovery logic as spec_resolver for etc path,
-    then appends /state/.
+    Derived from $HOMESTAK_ROOT/config/state.
 
     Returns:
         Path to state directory
     """
-    # Check environment variable first
-    if env_path := os.environ.get("HOMESTAK_ETC"):
-        return Path(env_path) / "state"
-
-    # User-owned path (~homestak/etc/state/)
-    return Path.home() / "etc" / "state"
+    root = Path(os.environ.get("HOMESTAK_ROOT", str(Path.home())))
+    return root / "config" / "state"
 
 
 class SpecClient:
