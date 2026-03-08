@@ -8,6 +8,8 @@
   - `HOMESTAK_ROOT` replaces `HOMESTAK_LIB`, `HOMESTAK_ETC`, `HOMESTAK_SITE_CONFIG`
   - `~/.profile` sets `HOMESTAK_ROOT=$HOME` and adds `$HOMESTAK_ROOT/bootstrap` to PATH
   - Drop `~/bin/` symlink directory — CLI resolved via PATH
+- Drop `.sh` extension from executable scripts (homestak-dev#313)
+  - `homestak.sh` → `homestak`, `install.sh` → `install`
 
 ## v0.53 - 2026-03-06
 

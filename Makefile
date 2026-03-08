@@ -22,7 +22,7 @@ install-deps:
 
 lint:
 	@echo "Running shellcheck..."
-	@shellcheck install.sh homestak.sh
+	@shellcheck install homestak
 	@echo "Lint passed"
 
 test:

@@ -128,7 +128,7 @@ parse_args() {
                 shift
                 ;;
             --version)
-                echo "install.sh v$VERSION"
+                echo "install v$VERSION"
                 exit 0
                 ;;
             --help|-h)

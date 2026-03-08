@@ -1,6 +1,6 @@
 #!/usr/bin/env bats
 #
-# Unit tests for homestak.sh CLI
+# Unit tests for homestak CLI
 #
 # Run with: bats tests/homestak.bats
 # Or: make test
@@ -13,7 +13,7 @@ setup() {
     mkdir -p "$TEST_DIR/iac" "$TEST_DIR/config" "$TEST_DIR/bootstrap"
 
     # Path to the script under test
-    export HOMESTAK_SH="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)/homestak.sh"
+    export HOMESTAK_SH="$(cd "$(dirname "$BATS_TEST_FILENAME")/.." && pwd)/homestak"
 }
 
 # Teardown - clean up test directories
@@ -21,7 +21,7 @@ teardown() {
     rm -rf "$TEST_DIR"
 }
 
-# Helper: source homestak.sh functions (without running main)
+# Helper: source homestak functions (without running main)
 load_functions() {
     # Create a modified version that doesn't run main
     local tmpscript="$TEST_DIR/homestak_test.sh"
@@ -35,7 +35,7 @@ load_functions() {
 # Basic CLI tests
 #
 
-@test "homestak.sh exists and is executable" {
+@test "homestak exists and is executable" {
     [ -f "$HOMESTAK_SH" ]
     [ -x "$HOMESTAK_SH" ]
 }
