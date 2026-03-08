@@ -4,7 +4,7 @@
 # Installs the homestak IAC tooling for local execution
 #
 # Usage:
-#   curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh | bash
+#   curl -fsSL https://raw.githubusercontent.com/homestak/bootstrap/master/install | bash
 #
 # Options:
 #   --source URL       Installation source (github, http://..., file://...)
@@ -44,7 +44,7 @@ show_help() {
 Homestak Bootstrap - Install homestak IAC tooling
 
 Usage:
-  curl -fsSL https://raw.githubusercontent.com/homestak-dev/bootstrap/master/install.sh | bash
+  curl -fsSL https://raw.githubusercontent.com/homestak/bootstrap/master/install | bash
 
   Or run directly:
   ./install.sh [options]
@@ -99,7 +99,7 @@ Examples:
   # Show help
   curl -fsSL .../install.sh | bash -s -- --help
 
-For more information: https://github.com/homestak-dev
+For more information: https://github.com/homestak
 EOF
     exit 0
 }
@@ -152,8 +152,18 @@ IAC_DIR="$HOMESTAK_ROOT/iac"          # IaC repos (ansible, iac-driver, tofu)
 CONFIG_DIR="$HOMESTAK_ROOT/config"    # Configuration (site-config)
 BOOTSTRAP_DIR="$HOMESTAK_ROOT/bootstrap"  # Bootstrap repo (contains CLI)
 
-GITHUB_ORG="https://github.com/homestak-dev"
+GITHUB_BASE="https://github.com"
 APPLY_TASK="${HOMESTAK_APPLY:-}"
+
+# Org mapping: repo → GitHub org
+declare -A REPO_ORGS=(
+    [bootstrap]="homestak"
+    [config]="homestak"
+    [ansible]="homestak-iac"
+    [iac-driver]="homestak-iac"
+    [tofu]="homestak-iac"
+    [packer]="homestak-iac"
+)
 
 # IaC repos (cloned to IAC_DIR)
 IAC_REPOS=(ansible iac-driver tofu)
@@ -170,7 +180,7 @@ detect_source() {
     case "$source" in
         github|https://github.com/*)
             SOURCE_TYPE="github"
-            BASE_URL="$GITHUB_ORG"
+            BASE_URL="$GITHUB_BASE"
             REF="${HOMESTAK_REF:-master}"
             ;;
         http://*|https://*)
@@ -338,9 +348,10 @@ clone_or_update() {
     local git_opts=()
 
     # Build URL and options based on source type
+    local org="${REPO_ORGS[$repo_name]:-homestak}"
     case "$SOURCE_TYPE" in
         github)
-            repo_url="${BASE_URL}/${repo_name}.git"
+            repo_url="${GITHUB_BASE}/${org}/${repo_name}.git"
             ;;
         http)
             repo_url="${BASE_URL}/${repo_name}.git"
@@ -390,7 +401,7 @@ done
 if [[ "$SKIP_SITE_CONFIG" == "true" ]] || [[ "$SKIP_SITE_CONFIG" == "1" ]]; then
     log_info "  Skipping site-config (SKIP_SITE_CONFIG=${SKIP_SITE_CONFIG})"
 else
-    clone_or_update "site-config" "$CONFIG_DIR"
+    clone_or_update "config" "$CONFIG_DIR"
 fi
 
 #
@@ -482,7 +493,7 @@ echo "  IaC repos:   $IAC_DIR"
 if [[ "$SKIP_SITE_CONFIG" != "true" ]] && [[ "$SKIP_SITE_CONFIG" != "1" ]]; then
     echo "  Config:      $CONFIG_DIR"
 fi
-echo "  CLI:         $BOOTSTRAP_DIR/homestak.sh"
+echo "  CLI:         $BOOTSTRAP_DIR/homestak"
 echo ""
 echo "Modules:"
 echo "  - bootstrap"
