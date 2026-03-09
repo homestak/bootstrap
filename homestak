@@ -914,7 +914,7 @@ images_publish() {
         fi
 
         echo "  Publishing $target -> $dest_name"
-        as_root mv "$source_file" "$dest_file"
+        as_root cp "$source_file" "$dest_file"
         echo "    Installed: $dest_file"
     done
 
