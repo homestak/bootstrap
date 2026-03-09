@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.54 - 2026-03-08
+
 ### Changed
 - **BREAKING**: Restructure workspace layout for multi-org support (homestak-dev#311)
   - `~/lib/` → `~/iac/` (ansible, iac-driver, tofu), `~/bootstrap/`, `~/config/`
