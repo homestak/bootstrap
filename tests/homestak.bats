@@ -221,13 +221,13 @@ load_functions() {
 @test "spec validate shows migration hint" {
     run "$HOMESTAK_SH" spec validate
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "moved to site-config" ]]
+    [[ "$output" =~ "moved to config" ]]
 }
 
 @test "spec validate with args still shows migration hint" {
     run "$HOMESTAK_SH" spec validate /some/file.yaml
     [ "$status" -eq 1 ]
-    [[ "$output" =~ "moved to site-config" ]]
+    [[ "$output" =~ "moved to config" ]]
 }
 
 #

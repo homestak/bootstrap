@@ -23,16 +23,16 @@
 #
 # Examples:
 #   # Basic bootstrap from GitHub
-#   curl -fsSL .../install.sh | bash
+#   curl -fsSL .../install | bash
 #
 #   # Pin to specific version
-#   curl -fsSL .../install.sh | HOMESTAK_REF=v0.37 bash
+#   curl -fsSL .../install | HOMESTAK_REF=v0.37 bash
 #
 #   # Bootstrap from HTTP server (dev workflow)
 #   HOMESTAK_SOURCE=http://192.0.2.1:54321 \
 #   HOMESTAK_TOKEN=a7Bx9kLmN2pQ4rSt \
 #   HOMESTAK_REF=_working \
-#   ./install.sh
+#   ./install
 #
 set -euo pipefail
 
@@ -47,7 +47,7 @@ Usage:
   curl -fsSL https://raw.githubusercontent.com/homestak/bootstrap/master/install | bash
 
   Or run directly:
-  ./install.sh [options]
+  ./install [options]
 
 Options:
   --source URL       Installation source (default: github)
@@ -78,26 +78,26 @@ Installation Paths (~homestak/ user-owned):
   ~/iac/            IaC repos (ansible, iac-driver, tofu)
 
 Source Types:
-  github      Default. Clones from GitHub, includes site-config.
+  github      Default. Clones from GitHub, includes config.
   http[s]://  Controller/server. Token optional, --insecure for self-signed.
   file://     Air-gapped. Clones from local path.
 
 Examples:
   # Basic bootstrap from GitHub
-  curl -fsSL .../install.sh | bash
+  curl -fsSL .../install | bash
 
   # Pin to specific version
-  curl -fsSL .../install.sh | HOMESTAK_REF=v0.37 bash
+  curl -fsSL .../install | HOMESTAK_REF=v0.37 bash
 
   # Bootstrap from controller (pull mode first boot)
-  curl -fsSk https://srv1:44443/bootstrap.git/install.sh | \
+  curl -fsSk https://srv1:44443/bootstrap.git/install | \
   HOMESTAK_SOURCE=https://srv1:44443 HOMESTAK_INSECURE=1 bash
 
   # Air-gapped installation
-  ./install.sh --source file:///mnt/usb/homestak --ref v0.37
+  ./install --source file:///mnt/usb/homestak --ref v0.37
 
   # Show help
-  curl -fsSL .../install.sh | bash -s -- --help
+  curl -fsSL .../install | bash -s -- --help
 
 For more information: https://github.com/homestak
 EOF
@@ -149,7 +149,7 @@ parse_args "$@"
 _HOME="${HOMESTAK_DEST:-/home/homestak}"
 HOMESTAK_ROOT="$_HOME"
 IAC_DIR="$HOMESTAK_ROOT/iac"          # IaC repos (ansible, iac-driver, tofu)
-CONFIG_DIR="$HOMESTAK_ROOT/config"    # Configuration (site-config)
+CONFIG_DIR="$HOMESTAK_ROOT/config"    # Configuration
 BOOTSTRAP_DIR="$HOMESTAK_ROOT/bootstrap"  # Bootstrap repo (contains CLI)
 
 GITHUB_BASE="https://github.com"
@@ -214,7 +214,7 @@ log_error() { echo -e "${RED}==>${NC} $1"; }
 # Must run as root (skip check if HOMESTAK_DEST is set for testing)
 if [[ -z "${HOMESTAK_DEST:-}" ]] && [[ $EUID -ne 0 ]]; then
     log_error "This script must be run as root"
-    echo "Usage: curl -fsSL .../install.sh | sudo bash"
+    echo "Usage: curl -fsSL .../install | sudo bash"
     exit 1
 fi
 
@@ -266,7 +266,7 @@ else
     # Wait for cloud-init to finish before we start apt operations.
     # On first boot, cloud-init runs apt-get update (cc_apt_configure module).
     #
-    # IMPORTANT: When install.sh runs inside cloud-init runcmd (pull mode),
+    # IMPORTANT: When install runs inside cloud-init runcmd (pull mode),
     # "cloud-init status --wait" deadlocks — it waits for cloud-init to finish,
     # but cloud-init waits for runcmd (us) to finish. Detect this and skip.
     if command -v cloud-init >/dev/null 2>&1; then
@@ -303,7 +303,7 @@ fi
 log_info "Installing prerequisites (git, make)..."
 export DEBIAN_FRONTEND=noninteractive  # Prevent debconf prompts in non-TTY environments
 
-# Retry apt-get with exponential backoff for lock contention
+# Retry apt-get with exponential backoff for lock contention (install)
 apt_retry() {
     local cmd="$1"
     local max_attempts=5
@@ -397,25 +397,25 @@ for repo in "${IAC_REPOS[@]}"; do
     fi
 done
 
-# Clone site-config to $ROOT/config/
+# Clone config to $ROOT/config/
 if [[ "$SKIP_SITE_CONFIG" == "true" ]] || [[ "$SKIP_SITE_CONFIG" == "1" ]]; then
-    log_info "  Skipping site-config (SKIP_SITE_CONFIG=${SKIP_SITE_CONFIG})"
+    log_info "  Skipping config (SKIP_SITE_CONFIG=${SKIP_SITE_CONFIG})"
 else
     clone_or_update "config" "$CONFIG_DIR"
 fi
 
 #
-# Step 3: Setup site-config
+# Step 3: Setup config
 #
 if [[ "$SKIP_SITE_CONFIG" != "true" ]] && [[ "$SKIP_SITE_CONFIG" != "1" ]]; then
-    log_info "Setting up site-config..."
+    log_info "Setting up config..."
     if [[ -f "$CONFIG_DIR/Makefile" ]]; then
         _su make -C "$CONFIG_DIR" setup 2>&1 | sed 's/^/    /' || true
         _su make -C "$CONFIG_DIR" init-site 2>&1 | sed 's/^/    /' || true
         _su make -C "$CONFIG_DIR" init-secrets 2>&1 | sed 's/^/    /' || true
     fi
 else
-    log_info "Skipping site-config setup (HTTP source)"
+    log_info "Skipping config setup (HTTP source)"
 fi
 
 # Export for iac-driver discovery
@@ -437,10 +437,10 @@ for repo in "${IAC_REPOS[@]}"; do
         make -C "$IAC_DIR/$repo" install-deps 2>&1 | sed 's/^/    /'
     fi
 done
-# site-config has its own install-deps (age, sops) — run separately
+# config has its own install-deps (age, sops) — run separately
 if [[ -f "$CONFIG_DIR/Makefile" ]]; then
     wait_for_apt
-    log_info "  site-config..."
+    log_info "  config..."
     make -C "$CONFIG_DIR" install-deps 2>&1 | sed 's/^/    /'
 fi
 

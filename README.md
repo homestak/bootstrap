@@ -31,7 +31,7 @@ homestak images download all --publish
 Your host is now ready to provision VMs:
 
 ```bash
-cd ~/lib/iac-driver
+cd ~/iac/iac-driver
 ./run.sh manifest apply -M n1-push -H $(hostname -s) --verbose
 ```
 
@@ -63,17 +63,16 @@ curl ... | HOMESTAK_APPLY=pve-setup sudo bash
 
 ## What Gets Installed
 
-**Code repos** (`~homestak/lib/`):
-- `bootstrap/` - CLI and installer
+**Code repos** (`~homestak/iac/`):
 - `ansible/` - Playbooks and roles
 - `iac-driver/` - Orchestration engine
 - `tofu/` - VM provisioning with OpenTofu
 
-**Configuration** (`~homestak/etc/`):
-- `site-config/` contents - secrets, hosts, nodes, manifests
+**Configuration** (`~homestak/config/`):
+- config repo contents - secrets, hosts, nodes, manifests
 
 **CLI:**
-- `~homestak/bin/homestak`
+- `~homestak/bootstrap/homestak`
 
 **Optional:**
 - `packer/` - Image building (install via `homestak install packer`)

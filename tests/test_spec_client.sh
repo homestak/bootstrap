@@ -5,7 +5,7 @@
 # Usage: ./test_spec_client.sh [--verbose]
 #
 # Prerequisites:
-#   - site-config with v2/specs/ and v2/postures/
+#   - config with v2/specs/ and v2/postures/
 #   - Server will be started automatically for testing
 #
 set -euo pipefail
