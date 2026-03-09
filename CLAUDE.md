@@ -180,8 +180,6 @@ Requires `python3-yaml` for get.
 |----------|---------|-------------|
 | `HOMESTAK_BRANCH` | master | Git branch to use for all repos |
 | `HOMESTAK_APPLY` | (none) | Task to run after bootstrap (pve-setup, pve-install, user, config) |
-| `HOMESTAK_LIB` | ~/iac | Code repos directory (for development) |
-| `HOMESTAK_ETC` | ~/config | Site-config directory (for development) |
 | `HOMESTAK_SERVER` | (none) | Spec server URL (e.g., `https://srv1:44443`) |
 | `HOMESTAK_TOKEN` | (none) | HMAC-signed provisioning token (minted by ConfigResolver) |
 | `HOMESTAK_SOURCE` | (none) | Repo source URL for bootstrap (e.g., server URL for pull mode) |
