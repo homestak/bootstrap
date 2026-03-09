@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.56 - 2026-03-09
+
 ### Changed
 - Move config state path from `config/.state/` to `$HOMESTAK_ROOT/.state/config/` in spec_client (iac-driver#303)
 - Move image cache from `~/.cache/homestak/images/` to `$HOMESTAK_ROOT/.cache/images/` (#105)
