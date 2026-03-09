@@ -222,7 +222,7 @@ Driver (srv1)                  VM (test)
    - `./run.sh config fetch` downloads spec from server; `./run.sh config apply` applies it locally
    - Maps spec sections to ansible role variables via `spec_to_ansible_vars()`
    - Runs `config-apply.yml` playbook (base, users, security roles)
-   - Writes completion marker to `~/.state/config/complete.json`
+   - Writes completion marker to `$HOMESTAK_ROOT/.state/config/complete.json`
    - **Push mode** (default): driver SSHes into VM and runs config
    - **Pull mode**: cloud-init runs `./run.sh config fetch --insecure && ./run.sh config apply` on first boot
    - See `iac-driver/CLAUDE.md` for full execution mode documentation
