@@ -338,7 +338,7 @@ apt_retry "apt-get install -y -qq git make" || {
 #
 log_info "Setting up homestak repositories..."
 _su mkdir -p "$IAC_DIR" "$CONFIG_DIR" "$BOOTSTRAP_DIR"
-_su mkdir -p "$HOMESTAK_ROOT/logs" "$_HOME/.cache/homestak" "$_HOME/.ssh"
+_su mkdir -p "$HOMESTAK_ROOT/logs" "$HOMESTAK_ROOT/.cache/images" "$_HOME/.ssh"
 _su chmod 700 "$_HOME/.ssh"
 
 clone_or_update() {
