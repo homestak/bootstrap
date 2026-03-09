@@ -14,6 +14,11 @@
   - bootstrap, config → `homestak` org
   - ansible, iac-driver, tofu, packer → `homestak-iac` org
   - `site-config` repo renamed to `config`
+- Update stale paths across codebase for multi-org migration (#99)
+
+### Fixed
+- Preserve cached images after publish — use `cp` instead of `mv` (#100)
+- Fix XDG cache path for image downloads (#98)
 
 ## v0.53 - 2026-03-06
 
