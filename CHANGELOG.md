@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+### Changed
+- Move config state path from `config/.state/` to `$HOMESTAK_ROOT/.state/config/` in spec_client (iac-driver#303)
+
 ## v0.55 - 2026-03-08
 
 No changes.
