@@ -24,12 +24,12 @@ homestak pve-setup
 
 1. **Creates `homestak` user** - dedicated user with sudo privileges
 2. **Installs prerequisites** - git, make (minimal)
-3. **Clones code repos** - bootstrap, ansible, iac-driver, tofu to `~homestak/lib/`
-4. **Clones site-config** - to `~homestak/etc/`
+3. **Clones code repos** - bootstrap, ansible, iac-driver, tofu to `~homestak/iac/`
+4. **Clones config** - to `~homestak/config/`
 5. **Sets up site-config** - runs `make setup` and `make install-deps` (installs age, sops)
 6. **Initializes secrets** - runs `make init-secrets` (decrypts `.enc` or copies `.example` template)
 7. **Runs `make install-deps`** - each code repo installs its own dependencies
-8. **Installs `homestak` CLI** - symlink to `~homestak/bin/homestak`
+8. **Installs `homestak` CLI** - at `~homestak/bootstrap/homestak`
 9. **Optionally runs initial task** - via `HOMESTAK_APPLY` env var
 
 ## Project Structure
@@ -54,9 +54,10 @@ After running install:
 
 ```
 ~homestak/
-├── bin/
-│   └── homestak → ../lib/bootstrap/homestak
-├── etc/                    # site-config (configuration)
+├── bootstrap/              # bootstrap repo (contains CLI)
+│   ├── homestak
+│   └── install
+├── config/                 # site configuration
 │   ├── site.yaml
 │   ├── secrets.yaml
 │   ├── defs/
@@ -66,15 +67,12 @@ After running install:
 │   ├── specs/
 │   ├── presets/
 │   └── manifests/
-├── lib/                    # code repos
-│   ├── bootstrap/
-│   │   ├── homestak
-│   │   └── install
+├── iac/                    # code repos
 │   ├── ansible/
 │   ├── iac-driver/
 │   ├── tofu/
 │   └── packer/             # (optional)
-├── log/
+├── logs/
 └── cache/
 ```
 
@@ -174,7 +172,7 @@ HOMESTAK_SERVER=https://srv1:44443 homestak spec get
 
 Requires `python3-yaml` for get.
 
-**Schema validation** has moved to site-config: `cd ~/etc && make validate`
+**Schema validation** has moved to config: `cd ~/config && make validate`
 
 ## Environment Variables
 
@@ -182,8 +180,8 @@ Requires `python3-yaml` for get.
 |----------|---------|-------------|
 | `HOMESTAK_BRANCH` | master | Git branch to use for all repos |
 | `HOMESTAK_APPLY` | (none) | Task to run after bootstrap (pve-setup, pve-install, user, config) |
-| `HOMESTAK_LIB` | ~/lib | Code repos directory (for development) |
-| `HOMESTAK_ETC` | ~/etc | Site-config directory (for development) |
+| `HOMESTAK_LIB` | ~/iac | Code repos directory (for development) |
+| `HOMESTAK_ETC` | ~/config | Site-config directory (for development) |
 | `HOMESTAK_SERVER` | (none) | Spec server URL (e.g., `https://srv1:44443`) |
 | `HOMESTAK_TOKEN` | (none) | HMAC-signed provisioning token (minted by ConfigResolver) |
 | `HOMESTAK_SOURCE` | (none) | Repo source URL for bootstrap (e.g., server URL for pull mode) |
@@ -242,16 +240,16 @@ defaults:
 **Server**:
 ```bash
 # Start on driver (iac-driver)
-cd ~/lib/iac-driver && ./run.sh server start
+cd ~/iac/iac-driver && ./run.sh server start
 ```
 
 **Validation Scenarios**:
 ```bash
 # Test create → specify flow (push verification)
-cd ~/lib/iac-driver && ./run.sh scenario run push-vm-roundtrip -H srv1
+cd ~/iac/iac-driver && ./run.sh scenario run push-vm-roundtrip -H srv1
 
 # Test create → config flow (pull verification, v0.48+)
-cd ~/lib/iac-driver && ./run.sh scenario run pull-vm-roundtrip -H srv1
+cd ~/iac/iac-driver && ./run.sh scenario run pull-vm-roundtrip -H srv1
 ```
 
 ### Authentication
@@ -276,7 +274,7 @@ Bootstrap installs `git`, `make`, and `gh` (GitHub CLI), then delegates to each 
 ### Core vs Optional Modules
 
 **Core (always installed):**
-- site-config - Site-specific secrets and configuration
+- config - Site-specific secrets and configuration
 - ansible - Playbooks and roles
 - iac-driver - Orchestration engine
 - tofu - VM provisioning with OpenTofu

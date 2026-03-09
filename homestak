@@ -153,7 +153,7 @@ manage_secrets() {
     local action="$1"
 
     if [[ ! -d "$CONFIG_DIR" ]]; then
-        echo -e "${RED}site-config not found at $CONFIG_DIR${NC}"
+        echo -e "${RED}config not found at $CONFIG_DIR${NC}"
         exit 1
     fi
 
@@ -171,8 +171,8 @@ manage_secrets() {
 }
 
 spec_validate_removed() {
-    echo -e "${YELLOW}The 'homestak spec validate' command has been moved to site-config.${NC}"
-    echo "Use the site-config validation script instead:"
+    echo -e "${YELLOW}The 'homestak spec validate' command has been moved to config.${NC}"
+    echo "Use the config validation script instead:"
     echo "  cd $CONFIG_DIR && make validate"
     echo "  cd $CONFIG_DIR && ./scripts/validate-schemas.sh [--json] [path...]"
     exit 1
@@ -417,7 +417,7 @@ site_init() {
     done
 
     if [[ ! -d "$CONFIG_DIR" ]]; then
-        echo -e "${RED}site-config not found at $CONFIG_DIR. Run bootstrap first.${NC}"
+        echo -e "${RED}config not found at $CONFIG_DIR. Run bootstrap first.${NC}"
         exit 1
     fi
 
