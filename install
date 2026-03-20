@@ -475,7 +475,8 @@ if [[ -n "$APPLY_TASK" ]]; then
             log_info "Applying PVE config phase..."
             # Create systemd oneshot service for reboot re-entry
             # (PVE install may require kernel reboot; service resumes after)
-            cat > /etc/systemd/system/pve-config.service << 'UNIT'
+            # Unquoted heredoc so HOMESTAK_SERVER/TOKEN are baked into the unit
+            cat > /etc/systemd/system/pve-config.service << UNIT
 [Unit]
 Description=PVE Config (self-configure)
 After=network-online.target
@@ -484,6 +485,8 @@ Wants=network-online.target
 [Service]
 Type=oneshot
 User=homestak
+Environment=HOMESTAK_SERVER=${HOMESTAK_SERVER}
+Environment=HOMESTAK_TOKEN=${HOMESTAK_TOKEN}
 ExecStart=/home/homestak/iac/iac-driver/run.sh scenario run pve-config --local
 RemainAfterExit=yes
 
