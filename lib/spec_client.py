@@ -229,7 +229,7 @@ def get_config_from_env() -> dict:
     """Get configuration from environment variables.
 
     Environment variables (#231):
-      HOMESTAK_SERVER  - Server URL (replaces HOMESTAK_SPEC_SERVER)
+      HOMESTAK_SERVER  - Server URL
       HOMESTAK_TOKEN   - Provisioning token (replaces HOMESTAK_IDENTITY + HOMESTAK_AUTH_TOKEN)
 
     Identity is derived from hostname, not env var.
@@ -239,8 +239,7 @@ def get_config_from_env() -> dict:
     """
     config = {}
 
-    # HOMESTAK_SERVER (preferred, #231), fallback to HOMESTAK_SPEC_SERVER
-    server = os.environ.get("HOMESTAK_SERVER") or os.environ.get("HOMESTAK_SPEC_SERVER")
+    server = os.environ.get("HOMESTAK_SERVER")
     if server:
         config["server"] = server
 

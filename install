@@ -15,11 +15,11 @@
 #   --version          Show version
 #
 # Environment Variables:
-#   HOMESTAK_SOURCE    Installation source (overridden by --source)
+#   HOMESTAK_SERVER    Installation source (overridden by --source)
 #   HOMESTAK_REF       Git ref (overridden by --ref)
 #   HOMESTAK_TOKEN     Auth token for HTTP/HTTPS sources (optional)
 #   HOMESTAK_INSECURE  Accept self-signed TLS certs (set to 1)
-#   HOMESTAK_APPLY     Run a task after bootstrap (vm-config, pve-config, pve-setup)
+#   HOMESTAK_BOOT_SCENARIO     Run a task after bootstrap (vm-config, pve-config, pve-setup)
 #
 # Examples:
 #   # Basic bootstrap from GitHub
@@ -29,7 +29,7 @@
 #   curl -fsSL .../install | HOMESTAK_REF=v0.37 bash
 #
 #   # Bootstrap from HTTP server (dev workflow)
-#   HOMESTAK_SOURCE=http://192.0.2.1:54321 \
+#   HOMESTAK_SERVER=http://192.0.2.1:54321 \
 #   HOMESTAK_TOKEN=a7Bx9kLmN2pQ4rSt \
 #   HOMESTAK_REF=_working \
 #   ./install
@@ -65,11 +65,11 @@ Options:
   --version          Show version
 
 Environment Variables:
-  HOMESTAK_SOURCE    Installation source (overridden by --source)
+  HOMESTAK_SERVER    Installation source (overridden by --source)
   HOMESTAK_REF       Git ref (overridden by --ref)
   HOMESTAK_TOKEN     Auth token for HTTP/HTTPS sources (optional)
   HOMESTAK_INSECURE  Accept self-signed TLS certs (overridden by --insecure)
-  HOMESTAK_APPLY     Run a task after bootstrap (vm-config, pve-config, pve-setup)
+  HOMESTAK_BOOT_SCENARIO     Run a task after bootstrap (vm-config, pve-config, pve-setup)
   HOMESTAK_DEST      Custom home directory (default: /home/homestak)
 
 Installation Paths (~homestak/ user-owned):
@@ -91,7 +91,7 @@ Examples:
 
   # Bootstrap from controller (pull mode first boot)
   curl -fsSk https://srv1:44443/bootstrap.git/install | \
-  HOMESTAK_SOURCE=https://srv1:44443 HOMESTAK_INSECURE=1 bash
+  HOMESTAK_SERVER=https://srv1:44443 HOMESTAK_INSECURE=1 bash
 
   # Air-gapped installation
   ./install --source file:///mnt/usb/homestak --ref v0.37
@@ -112,7 +112,7 @@ parse_args() {
     while [[ $# -gt 0 ]]; do
         case $1 in
             --source)
-                HOMESTAK_SOURCE="$2"
+                HOMESTAK_SERVER="$2"
                 shift 2
                 ;;
             --ref)
@@ -153,7 +153,7 @@ CONFIG_DIR="$HOMESTAK_ROOT/config"    # Configuration
 BOOTSTRAP_DIR="$HOMESTAK_ROOT/bootstrap"  # Bootstrap repo (contains CLI)
 
 GITHUB_BASE="https://github.com"
-APPLY_TASK="${HOMESTAK_APPLY:-}"
+BOOT_SCENARIO="${HOMESTAK_BOOT_SCENARIO:-}"
 
 # Org mapping: repo → GitHub org
 declare -A REPO_ORGS=(
@@ -175,7 +175,7 @@ REF=""
 SKIP_SITE_CONFIG="${SKIP_SITE_CONFIG:-false}"
 
 detect_source() {
-    local source="${HOMESTAK_SOURCE:-github}"
+    local source="${HOMESTAK_SERVER:-github}"
 
     case "$source" in
         github|https://github.com/*)
@@ -465,8 +465,8 @@ fi
 #
 # Step 6: Apply task if requested
 #
-if [[ -n "$APPLY_TASK" ]]; then
-    case "$APPLY_TASK" in
+if [[ -n "$BOOT_SCENARIO" ]]; then
+    case "$BOOT_SCENARIO" in
         config|vm-config)
             log_info "Applying VM config phase..."
             su - homestak -c "cd $IAC_DIR/iac-driver && ./run.sh config fetch --insecure && ./run.sh config apply"
@@ -497,8 +497,8 @@ UNIT
             systemctl enable --now pve-config.service
             ;;
         *)
-            log_info "Applying task: $APPLY_TASK"
-            su - homestak -c "homestak $APPLY_TASK"
+            log_info "Applying task: $BOOT_SCENARIO"
+            su - homestak -c "homestak $BOOT_SCENARIO"
             ;;
     esac
 fi

@@ -9,7 +9,7 @@ The "front door" to the homestak infrastructure-as-code ecosystem. This repo pro
 curl -fsSL https://raw.githubusercontent.com/homestak/bootstrap/master/install | sudo bash
 
 # Bootstrap and immediately run pve-setup
-curl -fsSL .../install | HOMESTAK_APPLY=pve-setup sudo bash
+curl -fsSL .../install | HOMESTAK_BOOT_SCENARIO=pve-setup sudo bash
 
 # View install options (download first)
 ./install --help
@@ -30,7 +30,7 @@ homestak pve-setup
 6. **Initializes secrets** - runs `make init-secrets` (decrypts `.enc` or copies `.example` template)
 7. **Runs `make install-deps`** - each code repo installs its own dependencies
 8. **Installs `homestak` CLI** - at `~homestak/bootstrap/homestak`
-9. **Optionally runs initial task** - via `HOMESTAK_APPLY` env var
+9. **Optionally runs boot scenario** - via `HOMESTAK_BOOT_SCENARIO` env var
 
 ## Project Structure
 
@@ -179,10 +179,9 @@ Requires `python3-yaml` for get.
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `HOMESTAK_BRANCH` | master | Git branch to use for all repos |
-| `HOMESTAK_APPLY` | (none) | Task to run after bootstrap (pve-setup, pve-install, user, config) |
-| `HOMESTAK_SERVER` | (none) | Spec server URL (e.g., `https://srv1:44443`) |
+| `HOMESTAK_BOOT_SCENARIO` | (none) | Scenario to run after bootstrap (pve-setup, pve-config, vm-config) |
+| `HOMESTAK_SERVER` | (none) | Server URL for bootstrap and provisioning (e.g., `https://srv1:44443`) |
 | `HOMESTAK_TOKEN` | (none) | HMAC-signed provisioning token (minted by ConfigResolver) |
-| `HOMESTAK_SOURCE` | (none) | Repo source URL for bootstrap (e.g., server URL for pull mode) |
 | `HOMESTAK_REF` | master | Git ref for bootstrap clones (e.g., `_working` for server repos) |
 | `HOMESTAK_INSECURE` | (none) | Skip TLS verification for server connections |
 
@@ -214,7 +213,7 @@ Driver (srv1)                  VM (test)
      - `HOMESTAK_TOKEN` - HMAC-signed provisioning token (carries identity + spec FK)
 
 2. **First Boot (cloud-init runcmd)**:
-   - Bootstraps from server (`HOMESTAK_SOURCE`) using `_working` branch
+   - Bootstraps from server (`HOMESTAK_SERVER`) using `_working` branch
    - Runs `./run.sh config fetch --insecure && ./run.sh config apply` (iac-driver fetches spec + applies config)
    - Config-complete marker written on success
 
@@ -232,7 +231,7 @@ Driver (srv1)                  VM (test)
 **Driver (site.yaml)**:
 ```yaml
 defaults:
-  spec_server: "https://srv1:44443"
+  server_url: "https://srv1:44443"
 ```
 
 **Server**:
