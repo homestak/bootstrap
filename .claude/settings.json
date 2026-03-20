@@ -1,0 +1,23 @@
+{
+  "permissions": {
+    "allow": [
+      "__ Lint and test __",
+      "Bash(shellcheck *)",
+      "Bash(pylint *)",
+      "Bash(bats *)",
+
+      "__ Build __",
+      "Bash(make *)",
+      "Bash(python3 *)",
+
+      "__ Claude Code tools __",
+      "Read",
+      "Edit",
+      "Write"
+    ],
+    "deny": [
+      "Bash(./install *)",
+      "Bash(homestak *)"
+    ]
+  }
+}
