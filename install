@@ -19,7 +19,7 @@
 #   HOMESTAK_REF       Git ref (overridden by --ref)
 #   HOMESTAK_TOKEN     Auth token for HTTP/HTTPS sources (optional)
 #   HOMESTAK_INSECURE  Accept self-signed TLS certs (set to 1)
-#   HOMESTAK_APPLY     Run a task after bootstrap (e.g., pve-setup)
+#   HOMESTAK_APPLY     Run a task after bootstrap (vm-config, pve-config, pve-setup)
 #
 # Examples:
 #   # Basic bootstrap from GitHub
@@ -69,7 +69,7 @@ Environment Variables:
   HOMESTAK_REF       Git ref (overridden by --ref)
   HOMESTAK_TOKEN     Auth token for HTTP/HTTPS sources (optional)
   HOMESTAK_INSECURE  Accept self-signed TLS certs (overridden by --insecure)
-  HOMESTAK_APPLY     Run a task after bootstrap (e.g., pve-setup)
+  HOMESTAK_APPLY     Run a task after bootstrap (vm-config, pve-config, pve-setup)
   HOMESTAK_DEST      Custom home directory (default: /home/homestak)
 
 Installation Paths (~homestak/ user-owned):
@@ -466,13 +466,41 @@ fi
 # Step 6: Apply task if requested
 #
 if [[ -n "$APPLY_TASK" ]]; then
-    if [[ "$APPLY_TASK" == "config" ]]; then
-        log_info "Applying config phase..."
-        su - homestak -c "cd $IAC_DIR/iac-driver && ./run.sh config fetch --insecure && ./run.sh config apply"
-    else
-        log_info "Applying task: $APPLY_TASK"
-        su - homestak -c "homestak $APPLY_TASK"
-    fi
+    case "$APPLY_TASK" in
+        config|vm-config)
+            log_info "Applying VM config phase..."
+            su - homestak -c "cd $IAC_DIR/iac-driver && ./run.sh config fetch --insecure && ./run.sh config apply"
+            ;;
+        pve-config)
+            log_info "Applying PVE config phase..."
+            # Create systemd oneshot service for reboot re-entry
+            # (PVE install may require kernel reboot; service resumes after)
+            # Unquoted heredoc so HOMESTAK_SERVER/TOKEN are baked into the unit
+            cat > /etc/systemd/system/pve-config.service << UNIT
+[Unit]
+Description=PVE Config (self-configure)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=homestak
+Environment=HOMESTAK_SERVER=${HOMESTAK_SERVER}
+Environment=HOMESTAK_TOKEN=${HOMESTAK_TOKEN}
+ExecStart=/home/homestak/iac/iac-driver/run.sh scenario run pve-config --local --skip-preflight
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+            systemctl daemon-reload
+            systemctl enable --now pve-config.service
+            ;;
+        *)
+            log_info "Applying task: $APPLY_TASK"
+            su - homestak -c "homestak $APPLY_TASK"
+            ;;
+    esac
 fi
 
 # Ensure secrets are never world-readable (safety net — make decrypt already sets 600)

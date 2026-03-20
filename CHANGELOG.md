@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+### Features
+- Add `pve-config` and `vm-config` dispatch for `HOMESTAK_APPLY` (#109)
+
+### Fixed
+- Skip preflight for `pve-config` systemd service (runs before config fetch)
+- Pass `HOMESTAK_SERVER` and `HOMESTAK_TOKEN` to pve-config systemd service (#109)
+
 ## v0.56 - 2026-03-09
 
 ### Changed
