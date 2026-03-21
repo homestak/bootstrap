@@ -58,7 +58,7 @@ Set environment variables before piping to bash:
 curl ... | HOMESTAK_BRANCH=develop sudo bash
 
 # Bootstrap and immediately run pve-setup
-curl ... | HOMESTAK_APPLY=pve-setup sudo bash
+curl ... | HOMESTAK_BOOT_SCENARIO=pve-setup sudo bash
 ```
 
 ## What Gets Installed
