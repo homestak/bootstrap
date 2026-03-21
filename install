@@ -487,7 +487,7 @@ Type=oneshot
 User=homestak
 Environment=HOMESTAK_SERVER=${HOMESTAK_SERVER}
 Environment=HOMESTAK_TOKEN=${HOMESTAK_TOKEN}
-ExecStart=/home/homestak/iac/iac-driver/run.sh scenario run pve-config --local --skip-preflight
+ExecStart=/home/homestak/iac/iac-driver/run.sh scenario run pve-config --local
 RemainAfterExit=yes
 
 [Install]
