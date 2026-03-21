@@ -15,6 +15,7 @@
 
 ### Removed
 - Remove `HOMESTAK_SPEC_SERVER` legacy fallback from spec_client (#314)
+- Remove `--skip-preflight` from pve-config systemd service (iac-driver#315)
 
 ## v0.56 - 2026-03-09
 
