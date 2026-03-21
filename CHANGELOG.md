@@ -5,9 +5,16 @@
 ### Features
 - Add `pve-config` and `vm-config` dispatch for `HOMESTAK_APPLY` (#109)
 
+### Changed
+- Change `HOMESTAK_SOURCE` env var to `HOMESTAK_SERVER` (#314)
+- Change `HOMESTAK_APPLY` env var to `HOMESTAK_BOOT_SCENARIO` (#318)
+
 ### Fixed
 - Skip preflight for `pve-config` systemd service (runs before config fetch)
 - Pass `HOMESTAK_SERVER` and `HOMESTAK_TOKEN` to pve-config systemd service (#109)
+
+### Removed
+- Remove `HOMESTAK_SPEC_SERVER` legacy fallback from spec_client (#314)
 
 ## v0.56 - 2026-03-09
 
