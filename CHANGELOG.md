@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+## v0.57 - 2026-03-22
+
 ### Features
 - Add `pve-config` and `vm-config` dispatch for `HOMESTAK_APPLY` (#109)
 
