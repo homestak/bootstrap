@@ -409,9 +409,11 @@ show_status() {
 
 site_init() {
     local force=false
+    local interactive=false
     while [[ $# -gt 0 ]]; do
         case "$1" in
             --force) force=true; shift ;;
+            --interactive|-i) interactive=true; shift ;;
             *) echo -e "${RED}Unknown option: $1${NC}"; exit 1 ;;
         esac
     done
@@ -457,7 +459,110 @@ site_init() {
         echo "  Skipping node config (PVE not detected)"
     fi
 
-    # Step 3: Check/generate SSH keys (ed25519 + RSA)
+    # Step 3: Auto-detect network defaults and write to site.yaml
+    local site_yaml="$CONFIG_DIR/site.yaml"
+    if [[ ! -f "$site_yaml" ]]; then
+        echo "  Creating site.yaml from template..."
+        make -C "$CONFIG_DIR" init-site 2>&1 | sed 's/^/    /' || true
+    fi
+
+    if [[ -f "$site_yaml" ]]; then
+        local set_defaults="$BOOTSTRAP_DIR/scripts/set-site-defaults.py"
+        if [[ -f "$set_defaults" ]]; then
+            echo "  Detecting network defaults..."
+
+            # Detect gateway from default route
+            local detected_gateway
+            detected_gateway=$(ip -j route show default 2>/dev/null | python3 -c "
+import sys, json
+try:
+    data = json.load(sys.stdin)
+    if data:
+        print(data[0].get('gateway', ''))
+except Exception:
+    pass
+" 2>/dev/null || true)
+
+            # Detect DNS servers from /etc/resolv.conf
+            local detected_dns
+            detected_dns=$(grep '^nameserver' /etc/resolv.conf 2>/dev/null | awk '{print $2}' | head -5 || true)
+
+            # Detect domain from hostname or resolv.conf
+            local detected_domain
+            detected_domain=$(hostname -d 2>/dev/null || true)
+            if [[ -z "$detected_domain" ]]; then
+                detected_domain=$(grep -m1 '^search\|^domain' /etc/resolv.conf 2>/dev/null | awk '{print $2}' || true)
+            fi
+
+            # Interactive mode: prompt for confirmation
+            if [[ "$interactive" == "true" ]]; then
+                echo ""
+                echo "  Detected network defaults:"
+                echo "    Gateway:     ${detected_gateway:-(not detected)}"
+                echo "    DNS servers: ${detected_dns:-(not detected)}"
+                echo "    Domain:      ${detected_domain:-(not detected)}"
+                echo ""
+                read -rp "  Accept these values? [Y/n/e] " confirm
+                case "${confirm,,}" in
+                    n) detected_gateway=""; detected_dns=""; detected_domain="" ;;
+                    e)
+                        read -rp "    Gateway [$detected_gateway]: " input
+                        [[ -n "$input" ]] && detected_gateway="$input"
+                        read -rp "    DNS servers [$detected_dns]: " input
+                        [[ -n "$input" ]] && detected_dns="$input"
+                        read -rp "    Domain [$detected_domain]: " input
+                        [[ -n "$input" ]] && detected_domain="$input"
+                        ;;
+                esac
+            fi
+
+            # Write detected values to site.yaml (only if field is currently empty)
+            local force_flag=""
+            [[ "$force" == "true" ]] && force_flag="--force"
+
+            if [[ -n "$detected_gateway" ]]; then
+                if python3 "$set_defaults" "$site_yaml" defaults.gateway "$detected_gateway" $force_flag; then
+                    echo -e "  ${GREEN}Set gateway:${NC} $detected_gateway"
+                else
+                    [[ $? -eq 2 ]] && echo "  Gateway already configured"
+                fi
+            fi
+
+            if [[ -n "$detected_dns" ]]; then
+                # Build JSON list from space/newline-separated servers
+                local dns_json
+                dns_json=$(echo "$detected_dns" | tr '\n' ' ' | python3 -c "
+import sys, json
+servers = sys.stdin.read().split()
+print(json.dumps(servers))
+" 2>/dev/null || true)
+                if [[ -n "$dns_json" ]]; then
+                    if python3 "$set_defaults" "$site_yaml" defaults.dns_servers "$dns_json" $force_flag; then
+                        echo -e "  ${GREEN}Set dns_servers:${NC} $dns_json"
+                    else
+                        [[ $? -eq 2 ]] && echo "  DNS servers already configured"
+                    fi
+                fi
+            fi
+
+            if [[ -n "$detected_domain" ]]; then
+                if python3 "$set_defaults" "$site_yaml" defaults.domain "$detected_domain" $force_flag; then
+                    echo -e "  ${GREEN}Set domain:${NC} $detected_domain"
+                else
+                    [[ $? -eq 2 ]] && echo "  Domain already configured"
+                fi
+            fi
+
+            if [[ -z "$detected_gateway" && -z "$detected_dns" ]]; then
+                echo -e "  ${YELLOW}Warning: Could not detect network defaults${NC}"
+                echo "  Edit $site_yaml manually to set gateway and dns_servers"
+            fi
+        else
+            echo -e "  ${YELLOW}Warning: set-site-defaults.py not found, skipping network detection${NC}"
+        fi
+    fi
+
+    # Step 4: Check/generate SSH keys (ed25519 + RSA)
     local ssh_key="$HOME/.ssh/id_ed25519"
     local ssh_pub="$HOME/.ssh/id_ed25519.pub"
     if [[ ! -f "$ssh_pub" ]]; then
